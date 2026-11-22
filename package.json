@@ -1,0 +1,78 @@
+{
+  "name": "orbit-planner",
+  "productName": "Orbit",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Orbit: weekly goals, priority matrix, routines, project plans, notes and voice notes, synced across Windows and Android.",
+  "author": "Orbit",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5199 --strictPort",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "electron:dev": "concurrently -k \"vite --port 5199 --strictPort\" \"wait-on tcp:127.0.0.1:5199 && electron . --dev\"",
+    "electron:start": "vite build && electron .",
+    "dist:win": "vite build && electron-builder --win nsis",
+    "android:sync": "vite build && cap sync android",
+    "android:apk": "npm run android:sync && cd android && .\\gradlew.bat assembleDebug && cd .. && node scripts/copy-apk.cjs",
+    "dist:all": "npm run dist:win && npm run android:apk"
+  },
+  "dependencies": {
+    "@capacitor-community/speech-recognition": "^7.0.1",
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/local-notifications": "^8.3.1"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^1.12.0",
+    "@capacitor/cli": "^8.6.2",
+    "@huggingface/transformers": "^4.3.2",
+    "@supabase/supabase-js": "^2.119.2",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "concurrently": "^10.0.7",
+    "dexie": "^4.4.7",
+    "dexie-react-hooks": "^4.4.0",
+    "electron": "^45.4.1",
+    "electron-builder": "^26.18.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "typescript": "~5.9.0",
+    "vite": "^8.3.8",
+    "wait-on": "^9.5.1",
+    "zod": "^4.6.7"
+  },
+  "build": {
+    "appId": "com.orbit.planner",
+    "productName": "Orbit",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json",
+      "!node_modules/@capacitor/**",
+      "!node_modules/@capacitor-community/**"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Orbit",
+      "artifactName": "Orbit-Setup.exe",
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}
