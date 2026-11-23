@@ -40,12 +40,16 @@ public class GoogleDrivePlugin extends Plugin {
             PluginCall call = pending;
             pending = null;
             if (call == null) return;
-            if (result.getResultCode() != Activity.RESULT_OK) { call.reject("Google sign-in was cancelled"); return; }
+            // Even when the screen closes without success, Google usually puts the real reason
+            // (e.g. 10 = app not registered with this package/SHA-1) in the result intent.
             try {
                 AuthorizationResult r = Identity.getAuthorizationClient(getActivity()).getAuthorizationResultFromIntent(result.getData());
-                resolveToken(call, r);
+                if (result.getResultCode() == Activity.RESULT_OK) { resolveToken(call, r); return; }
+                call.reject("code:cancelled");
             } catch (ApiException e) {
-                call.reject("Google sign-in failed (" + e.getStatusCode() + ")");
+                call.reject("code:" + e.getStatusCode() + ":" + e.getMessage());
+            } catch (Exception e) {
+                call.reject(result.getResultCode() == Activity.RESULT_OK ? "code:error:" + e.getMessage() : "code:cancelled");
             }
         });
     }
@@ -77,8 +81,8 @@ public class GoogleDrivePlugin extends Plugin {
                 }
             })
             .addOnFailureListener(e -> {
-                String code = e instanceof ApiException ? " (" + ((ApiException) e).getStatusCode() + ")" : "";
-                call.reject("Google sign-in failed" + code + ": " + e.getMessage());
+                String code = e instanceof ApiException ? String.valueOf(((ApiException) e).getStatusCode()) : "error";
+                call.reject("code:" + code + ":" + e.getMessage());
             });
     }
 

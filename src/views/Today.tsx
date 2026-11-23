@@ -78,7 +78,7 @@ export function Today({ open, go }: { open: (t: Task) => void; go: (v: View) => 
         <div className="stats">
           <button className={'stat' + (overdue.length ? ' warn' : '')} onClick={() => go('tasks')}><b>{overdue.length}</b><span>Overdue</span></button>
           <button className="stat" onClick={() => go('tasks')}><b>{dueToday.length}</b><span>Due today</span></button>
-          <button className="stat" onClick={() => go('matrix')}><b>{firstCount}</b><span>First priority</span></button>
+          <button className="stat" onClick={() => go('matrix')}><b>{firstCount}</b><span>Urgent</span></button>
           <button className="stat" onClick={() => go('routines')}><b>{bestStreak || '–'}</b><span>Best streak (days)</span></button>
         </div>
       </section>

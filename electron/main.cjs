@@ -133,7 +133,7 @@ ipcMain.handle('google-auth', async (_e, { clientId, clientSecret, scopes }) => 
   if (clientSecret) body.set('client_secret', clientSecret);
   const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', body });
   const j = await r.json();
-  if (!r.ok) throw new Error(j.error_description || j.error || 'Token exchange failed');
+  if (!r.ok) throw new Error([j.error, j.error_description].filter(Boolean).join(': ') || 'Token exchange failed');
   if (win) { win.show(); win.focus(); }
   return j; // { access_token, refresh_token, expires_in, ... }
 });
@@ -143,7 +143,7 @@ ipcMain.handle('google-refresh', async (_e, { clientId, clientSecret, refreshTok
   if (clientSecret) body.set('client_secret', clientSecret);
   const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', body });
   const j = await r.json();
-  if (!r.ok) throw new Error(j.error_description || j.error || 'Token refresh failed');
+  if (!r.ok) throw new Error([j.error, j.error_description].filter(Boolean).join(': ') || 'Token refresh failed');
   return j;
 });
 

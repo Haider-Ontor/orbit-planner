@@ -3,7 +3,7 @@ import { useEvents, useTasks, useRoutines } from '../lib/hooks';
 import { today, addDays, parseDate, niceTime, timeOfISO, dateOfISO, dowName } from '../lib/dates';
 import { isDueOn } from '../lib/recurrence';
 import { QUADRANTS, quadrantOf } from '../lib/priority';
-import { syncCalendar, gcalAvailable, gcalConnected } from '../lib/gcal';
+import { syncCalendar, gcalConnected } from '../lib/gcal';
 import { openLink } from '../lib/platform';
 import { ViewHead, toast, errMsg } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -50,7 +50,7 @@ export function Calendar({ open, go }: { open: (t: Task) => void; go: (v: View) 
     <div className="view">
       <ViewHead title="Calendar" sub="Google Calendar events, timed tasks, deadlines and routines in one list.">
         <div className="seg">{[7, 14, 30].map((n) => <button key={n} className={span === n ? 'on' : ''} onClick={() => setSpan(n)}>{n} days</button>)}</div>
-        {gcalAvailable() && gcalConnected()
+        {gcalConnected()
           ? <button className="btn" onClick={refresh} disabled={busy}><Icon name="sync" size={15} /> {busy ? 'Syncing…' : 'Sync Google'}</button>
           : <button className="btn" onClick={() => go('settings')}>Connect Google Calendar</button>}
       </ViewHead>

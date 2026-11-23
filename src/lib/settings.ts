@@ -18,12 +18,15 @@ export interface Settings {
   driveRefreshToken: string; // Windows: Google Drive sync
   driveEmail: string;
   driveAndroid: boolean;     // Android: connected through Play Services
+  googleScopes: string;      // permissions granted at the last Google sign-in
+  calendarPush: boolean;     // add Orbit tasks to Google Calendar
+  calendarPull: boolean;     // show Google Calendar events in Orbit
   whisperModel: string;
   voiceLanguage: string; // '' = auto, 'english', 'bengali', ...
   remindersOn: boolean;
   remindMinutesBefore: number;
   dailyDigestTime: string; // HH:MM
-  theme: 'system' | 'light' | 'dark';
+  theme: 'system' | 'light' | 'dark' | 'paper' | 'sage' | 'circuit';
   lastPull: string;        // ISO timestamp cursor for cloud pulls
 }
 
@@ -45,6 +48,9 @@ const DEFAULTS: Settings = {
   driveRefreshToken: '',
   driveEmail: '',
   driveAndroid: false,
+  googleScopes: '',
+  calendarPush: true,
+  calendarPull: true,
   whisperModel: 'onnx-community/whisper-base',
   voiceLanguage: '',
   remindersOn: true,

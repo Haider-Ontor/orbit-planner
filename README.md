@@ -37,13 +37,14 @@ Everything works offline straight away. To keep the phone and the PC in sync (an
 |---|---|
 | **Today** | A dashboard: gauges for today, this week's goals and repeating tasks, a live clock and status light, a 14-day "finished" trace, then *Do next*, steps due, repeating tasks, goals and *Done today*. Tap **+** (or *Add a task*) to add anything. |
 | **Weekly goals** | **New goal** walks you through it: what you want, what kind of goal it is (finish something → SMART; habit or number → Minimum / Target / Outrageous; or both), the criteria, start and finish week, top priority or normal, and small daily actions on chosen days. Use **‹ ›** on a goal to move its due week: later as often as needed (it stays open across every week in between), earlier but never before this week. Shows goals needing a new week, coming up, and recently achieved. |
-| **Priorities** | First → Second → Third → Eliminate, top to bottom. Each task has one **Move ▾** menu (on a computer you can also drag the ⋮⋮ handle). Empty sections fold away. Deadlines move tasks up on their own. |
+| **Priorities** | **Urgent** (red) → **Important** (yellow) → **Not urgent** (green) → **Not important** (sky blue), top to bottom. Each task has one **Move ▾** menu (on a computer you can also drag the ⋮⋮ handle). Empty sections fold away. Deadlines move tasks up on their own. |
 | **All tasks** | Search, filter by project/quadrant, sort by priority or deadline |
 | **Repeating tasks** | Things you do every day or on chosen days (e.g. water the plants on Mon and Thu). Add them from **+** → *Some days*. 7-day tick grid, streaks, 30-day rate. |
 | **Projects** | Its own tab. Each project is a list of tasks, each with sub-tasks that have deadlines. Tick things off, see progress, and switch to a **Timeline** view. Built for the phone. Upcoming and overdue steps also appear on **Today**. |
 | **Done & history** | Everything you finished, day by day: to-dos, plan steps, routines and goals, with a bar chart for the week. Each item has **Reopen** in case it was ticked by mistake. **Recently deleted** keeps deleted items for 30 days with **Restore**. |
 | **Undo** | Ticking, unticking, deleting, moving or archiving shows an **Undo** button for 10 seconds. Finished items never vanish: they stay under **Done today** on Today and in Done & history. |
 | **Backups** | Saved instantly on the device, plus an automatic daily copy inside the app (last 14 days, Settings → Your data & backups → Restore). On Windows the same copy is also written to `Documents\Orbit Backups` (last 30 days). |
+| **Themes** | Settings → Theme: Automatic, Ivory, Graphite, Paper, Sage or Circuit. |
 | **Updates** | **Settings → Updates** checks GitHub for a newer version and installs it, on Windows and Android. |
 | **Notes & voice** | Text notes and voice notes (speech → text). With AI connected, *Organise into tasks* turns a note into tasks. |
 | **Calendar** | Google Calendar events + timed tasks + deadlines + repeating tasks for the next 7/14/30 days |
@@ -83,13 +84,16 @@ Orbit can only see the files it creates there (Google's `drive.file` permission)
 
 **Restore:** Settings → Google Drive → **Restore from Drive…** lists the daily backups.
 
-### 3. Google Calendar (from the Windows app)
-1. console.cloud.google.com → new project → **APIs & Services → Library** → enable **Google Calendar API**.
-2. **OAuth consent screen** → External → add your Gmail as a *test user*.
-3. **Credentials → Create credentials → OAuth client ID → Application type: Desktop app**. Copy the client ID and secret.
-4. Orbit (Windows) → Settings → Google Calendar → paste both → **Connect Google Calendar** → approve in the browser.
+### 3. Google Calendar
+Uses the same Google connection as Drive (the one-time setup above also enables the **Google Calendar API**). On Windows and Android:
+- every task with a date goes to your Google Calendar: a timed event if it has a time, an all-day event otherwise, coloured by priority (red Urgent, yellow Important, green Not urgent, blue Not important);
+- every repeating task becomes a recurring event on its days;
+- finished tasks keep their event with a ✓; deleted tasks remove it;
+- your own calendar events show up in Today and Calendar.
 
-Then: tasks with a time (a due date + time, or a scheduled start) appear in Google Calendar, with their checklist in the description. Your calendar events appear in Today and Agenda. Both directions run every 10 minutes and shortly after edits. Events reach the phone through cloud sync.
+Event ids are derived from Orbit's ids, so the phone and the PC never create duplicates. Both switches are in **Settings → Google**.
+
+**If sign-in says it was cancelled or blocked**, Orbit now shows the exact reason under the button. On Android this almost always means the **Android OAuth client** (package `com.orbit.planner`, SHA-1 above) is missing from the Google Cloud project, or your Gmail is not listed under **Test users**.
 
 ### 4. Voice notes
 - **Windows:** records audio, then transcribes on your PC with Whisper (no cloud, no key). The model downloads once (base ≈ 80 MB). Pick tiny/base/small and the language in Settings.

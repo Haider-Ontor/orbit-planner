@@ -46,7 +46,7 @@ export function Tasks({ open }: { open: (t: Task) => void }) {
           {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
         <select className="select" style={{ width: 'auto' }} value={quad} onChange={(e) => setQuad(e.target.value as Quadrant | '')}>
-          <option value="">All quadrants</option>
+          <option value="">All priorities</option>
           {(Object.keys(QUADRANTS) as Quadrant[]).map((k) => <option key={k} value={k}>{QUADRANTS[k].label}</option>)}
         </select>
       </div>

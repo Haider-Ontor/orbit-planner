@@ -9,7 +9,7 @@ import { startDriveSync } from './lib/driveSync';
 import { initSync } from './lib/sync';
 import { onLocalChange } from './lib/db';
 import { startDesktopReminders, rescheduleAndroid } from './lib/notify';
-import { syncCalendar, gcalAvailable } from './lib/gcal';
+import { calendarSoon } from './lib/gcal';
 
 async function boot() {
   ensurePersistentStorage();
@@ -23,13 +23,9 @@ async function boot() {
   rescheduleAndroid();
   onLocalChange(() => rescheduleAndroid());
 
-  // Google Calendar: on start, then every 10 minutes, plus shortly after task edits.
-  if (gcalAvailable()) {
-    const cal = () => syncCalendar().catch((e) => console.warn('calendar sync', e));
-    setTimeout(cal, 4000);
-    setInterval(cal, 10 * 60_000);
-    let t: number | undefined;
-    onLocalChange(() => { clearTimeout(t); t = window.setTimeout(cal, 8000); });
-  }
+  // Google Calendar (Windows and Android): on start, every 10 minutes, and shortly after edits.
+  calendarSoon(4000);
+  setInterval(() => calendarSoon(0), 10 * 60_000);
+  onLocalChange(() => calendarSoon(8000));
 }
 boot();

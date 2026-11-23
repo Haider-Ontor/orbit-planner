@@ -8,10 +8,10 @@ export type Quadrant = 'first' | 'second' | 'third' | 'eliminate';
 /** In order from most to least urgent. `hint` is the plain-language meaning. */
 export const QUADRANT_ORDER: Quadrant[] = ['first', 'second', 'third', 'eliminate'];
 export const QUADRANTS: Record<Quadrant, { label: string; hint: string; action: string; color: string; ink: string }> = {
-  first:     { label: 'First Priority',  action: 'Do it now',          hint: 'Important and urgent',          color: 'var(--q1)', ink: '#ffffff' },
-  second:    { label: 'Second Priority', action: 'Plan a time for it', hint: 'Important, not urgent',         color: 'var(--q2)', ink: '#ffffff' },
-  third:     { label: 'Third Priority',  action: 'Do it quickly',      hint: 'Urgent, less important',        color: 'var(--q3)', ink: '#ffffff' },
-  eliminate: { label: 'Eliminate',       action: 'Drop it or do later', hint: 'Neither important nor urgent', color: 'var(--q4)', ink: '#ffffff' },
+  first:     { label: 'Urgent',        hint: 'Needs doing now',       action: 'Do it now',              color: 'var(--q1)', ink: '#ffffff' },
+  second:    { label: 'Important',     hint: 'Matters, not rushed',   action: 'Plan a time for it',     color: 'var(--q2)', ink: '#ffffff' },
+  third:     { label: 'Not urgent',    hint: 'Can wait',              action: 'Do it when you can',     color: 'var(--q3)', ink: '#ffffff' },
+  eliminate: { label: 'Not important', hint: 'Low value',             action: 'Drop it or do it later', color: 'var(--q4)', ink: '#ffffff' },
 };
 
 /** Days until due (negative = overdue), or null. */
