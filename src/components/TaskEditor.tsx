@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Task, Project } from '../lib/types';
-import { save, remove, uid } from '../lib/db';
+import { save, uid } from '../lib/db';
+import { removeWithUndo } from '../lib/undo';
 import { QUADRANTS, quadrantOf } from '../lib/priority';
 import { openLink } from '../lib/platform';
 import { Modal, Check } from './ui';
@@ -30,7 +31,7 @@ export function TaskEditor({ task, projects, onClose, isNew }: { task: Task; pro
   return (
     <Modal title={isNew ? 'New task' : 'Task'} onClose={commit}
       footer={<>
-        {!isNew && <button className="btn danger" onClick={async () => { await remove('tasks', t.id); onClose(); }}><Icon name="trash" size={15} /> Delete</button>}
+        {!isNew && <button className="btn danger" onClick={async () => { await removeWithUndo('tasks', t.id, t.title || 'task'); onClose(); }}><Icon name="trash" size={15} /> Delete</button>}
         <div className="grow" />
         <button className="btn" onClick={onClose}>Cancel</button>
         <button className="btn primary" onClick={commit}>Save</button>

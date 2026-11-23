@@ -128,6 +128,8 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; 
   display: grid; place-items: center; padding: 0; color: #fff;
 }
 .check.on { background: var(--accent); border-color: var(--accent); }
+.check { position: relative; }
+.check::after { content: ''; position: absolute; inset: -9px; } /* larger, easier tap target */
 .check.round { border-radius: 50%; }
 
 /* ---------- today ---------- */
@@ -250,6 +252,27 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; 
 .tl-legend .tl-dot { position: static; margin: 0 2px 0 6px; }
 .steps-due .trow { align-items: center; }
 
+.snaps { display: flex; flex-direction: column; gap: 6px; }
+.snap-row { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+
+/* ---------- done & history ---------- */
+.week-card { padding: 14px 16px; }
+.week-bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.wb { border: 0; background: none; padding: 4px 0; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; border-radius: 8px; color: inherit; }
+.wb:hover { background: var(--panel-2); }
+.wb.on { background: var(--accent-soft); }
+.wb.future { opacity: .45; }
+.wb-n { font-size: 12px; font-weight: 700; color: var(--accent); min-height: 16px; }
+.wb-bar { width: 60%; max-width: 34px; height: 64px; background: var(--line-2); border-radius: 6px; display: flex; align-items: flex-end; overflow: hidden; }
+.wb-bar i { display: block; width: 100%; background: var(--accent); border-radius: 6px; }
+.wb-d { font-size: 11.5px; font-weight: 600; color: var(--ink-3); }
+.wb.today .wb-d { color: var(--accent); }
+.done-ico { width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-size: 13px; flex: none; font-weight: 700; }
+.done-ico.k-routine { background: rgba(46,111,196,.14); color: #4a86d8; }
+.done-ico.k-goal { background: rgba(246,199,0,.2); }
+.done-row .t-title { color: var(--ink); }
+.linkish { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }
+
 /* ---------- weekly goals ---------- */
 .goal-summary { display: flex; gap: 24px; align-items: center; padding: 14px 18px; margin-bottom: 16px; flex-wrap: wrap; }
 .goal-summary .n { font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
@@ -304,8 +327,12 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; 
 .slider-row input { flex: 1; accent-color: var(--accent); }
 .slider-row b { width: 18px; text-align: center; }
 
-.toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1b1e23; color: #fff; padding: 10px 16px; border-radius: 10px; z-index: 60; font-size: 13px; box-shadow: 0 8px 30px rgba(0,0,0,.25); max-width: calc(100vw - 32px); }
+.toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1b1e23; color: #fff; padding: 8px 8px 8px 16px; min-height: 44px; border-radius: 12px; z-index: 60; font-size: 13.5px; box-shadow: 0 8px 30px rgba(0,0,0,.3); width: max-content; max-width: calc(100vw - 32px); display: flex; align-items: center; gap: 12px; }
+.toast > span { padding: 4px 8px 4px 0; overflow-wrap: anywhere; }
 .toast.err { background: var(--danger); }
+.toast-btn { border: 0; background: rgba(255,255,255,.14); color: #8ef0c0; font: inherit; font-weight: 700; padding: 8px 14px; border-radius: 8px; cursor: pointer; flex: none; }
+.toast-btn:hover { background: rgba(255,255,255,.24); }
+@media (max-width: 760px) { .toast { bottom: calc(76px + env(safe-area-inset-bottom)); left: 12px; right: 80px; transform: none; width: auto; max-width: none; } }
 
 .settings-sec { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
 .settings-sec h3 { margin: 0; font-size: 15px; }

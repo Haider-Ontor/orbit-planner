@@ -2,6 +2,8 @@ import Dexie, { type Table } from 'dexie';
 import type { Task, Routine, Project, Note, CalEvent, Goal, SyncKind, Base } from './types';
 
 export interface AudioBlob { id: string; blob: Blob; mime: string }
+/** Daily local copy of all data (not synced), for restoring after a mistake. */
+export interface Snapshot { id: string; createdAt: number; counts: Record<string, number>; data: string }
 
 class OrbitDB extends Dexie {
   tasks!: Table<Task, string>;
@@ -11,6 +13,7 @@ class OrbitDB extends Dexie {
   events!: Table<CalEvent, string>;
   goals!: Table<Goal, string>;
   audio!: Table<AudioBlob, string>;
+  snapshots!: Table<Snapshot, string>;
 
   constructor() {
     super('orbit');
@@ -24,6 +27,9 @@ class OrbitDB extends Dexie {
     });
     this.version(2).stores({
       goals: 'id, updated_at, dirty, deleted, weekStart, status',
+    });
+    this.version(3).stores({
+      snapshots: 'id, createdAt',
     });
   }
 }
@@ -52,13 +58,22 @@ export async function patch<T extends Base>(kind: SyncKind, id: string, changes:
   return save(kind, { ...cur, ...changes });
 }
 
-/** Soft delete so the deletion syncs to other devices. */
-export async function remove(kind: SyncKind, id: string) {
-  const table = db[kind] as unknown as Table<Base, string>;
+/** Soft delete: the record moves to "Recently deleted" and the deletion syncs.
+ *  Returns the record as it was, so the caller can offer Undo. A note's
+ *  recording is kept so restoring the note brings it back too. */
+export async function remove<T extends Base>(kind: SyncKind, id: string): Promise<T | undefined> {
+  const table = db[kind] as unknown as Table<T, string>;
   const cur = await table.get(id);
   if (!cur) return;
   await save(kind, { ...cur, deleted: 1 });
-  if (kind === 'notes') await db.audio.delete(id);
+  return cur;
+}
+
+/** Bring a deleted record back. */
+export async function restore(kind: SyncKind, id: string) {
+  const table = db[kind] as unknown as Table<Base, string>;
+  const cur = await table.get(id);
+  if (cur) await save(kind, { ...cur, deleted: 0 });
 }
 
 export const alive = <T extends Base>(rows: T[]) => rows.filter((r) => !r.deleted);

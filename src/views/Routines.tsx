@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useRoutines } from '../lib/hooks';
-import { save, remove } from '../lib/db';
-import { newRoutine } from '../lib/models';
+import { save } from '../lib/db';
+import { removeWithUndo } from '../lib/undo';
+import { newRoutine, toggleRoutineDay } from '../lib/models';
 import { today, addDays, parseDate, niceTime, dowName } from '../lib/dates';
 import { isDueOn, streak, completionRate, describe } from '../lib/recurrence';
 import { Modal, ViewHead } from '../components/ui';
 import { Icon } from '../components/icons';
-import { toggle } from './Today';
 import type { Routine, RoutineFreq } from '../lib/types';
 
 export function Routines() {
@@ -41,7 +41,7 @@ export function Routines() {
                   const due = isDueOn(r, d);
                   return (
                     <button key={d} className={'day' + (r.log[d] ? ' on' : '') + (!due ? ' na' : '') + (d === t0 ? ' today' : '')}
-                      disabled={!due} aria-label={`${r.title} ${d}`} onClick={() => save('routines', { ...r, log: toggle(r.log, d) })}>
+                      disabled={!due} aria-label={`${r.title} ${d}`} onClick={() => toggleRoutineDay(r, d)}>
                       {r.log[d] ? '✓' : ''}
                     </button>
                   );
@@ -65,7 +65,7 @@ function RoutineEditor({ r: init, isNew, cats, onClose }: { r: Routine; isNew: b
   const ok = async () => { if (r.title.trim()) await save('routines', { ...r, title: r.title.trim() }); onClose(); };
   return (
     <Modal title={isNew ? 'New routine' : 'Routine'} onClose={onClose} footer={<>
-      {!isNew && <button className="btn danger" onClick={async () => { await remove('routines', r.id); onClose(); }}>Delete</button>}
+      {!isNew && <button className="btn danger" onClick={async () => { await removeWithUndo('routines', r.id, r.title); onClose(); }}>Delete</button>}
       <div className="grow" /><button className="btn" onClick={onClose}>Cancel</button><button className="btn primary" onClick={ok}>Save</button>
     </>}>
       <input className="input" autoFocus placeholder="e.g. Review lecture notes" value={r.title} onChange={(e) => up({ title: e.target.value })} />

@@ -4,8 +4,9 @@ import { score, daysLeft, quadrantOf, QUADRANTS } from '../lib/priority';
 import { today, addDays, mondayOf, longToday, niceTime, timeOfISO, dateOfISO, niceDate, daysBetween } from '../lib/dates';
 import { isDueOn, streak } from '../lib/recurrence';
 import { save } from '../lib/db';
-import { newTask, goalProgress, deadlinesOf, toggleStep } from '../lib/models';
+import { newTask, goalProgress, deadlinesOf, toggleStep, toggleRoutineDay } from '../lib/models';
 import { parseQuick } from '../lib/quick';
+import { completions, KIND_ICON } from '../lib/history';
 import { TaskRow } from '../components/TaskRow';
 import { Check, ViewHead, toast, Progress } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -29,7 +30,8 @@ export function Today({ open, go }: { open: (t: Task) => void; go: (v: View) => 
   const todaysRoutines = routines.filter((r) => isDueOn(r, t0)).sort((a, b) => (a.time ?? '99').localeCompare(b.time ?? '99'));
   const doneRoutines = todaysRoutines.filter((r) => r.log[t0]).length;
   const todaysEvents = events.filter((e) => dateOfISO(e.start) === t0 && !e.fromOrbit);
-  const doneToday = tasks.filter((t) => t.status === 'done' && t.doneAt && new Date(t.doneAt).toDateString() === new Date().toDateString()).length;
+  const finishedToday = completions(tasks, projects, routines, goals).filter((x) => x.day === t0);
+  const doneToday = finishedToday.filter((x) => x.kind !== 'routine').length;
   const firstCount = active.filter((t) => quadrantOf(t) === 'first').length;
   const wk = mondayOf(t0);
   const steps = deadlinesOf(projects).filter((d) => d.due <= addDays(t0, 7)).slice(0, 8);
@@ -109,6 +111,18 @@ export function Today({ open, go }: { open: (t: Task) => void; go: (v: View) => 
             <div className="card-h">Next 7 days</div>
             <div className="card-b">{upcoming.length ? upcoming.map((t) => <TaskRow key={t.id} t={t} projects={pmap} onOpen={open} />) : <div className="empty">Clear week ahead.</div>}</div>
           </div>
+          <div className="card">
+            <div className="card-h">Done today · {finishedToday.length}<span className="grow" /><button className="btn ghost sm" onClick={() => go('history')}>History</button></div>
+            <div className="card-b">
+              {finishedToday.length ? finishedToday.map((x) => (
+                <div key={x.key} className="trow done-row" style={{ alignItems: 'center', cursor: 'default' }}>
+                  <span className={'done-ico k-' + x.kind} aria-hidden="true">{KIND_ICON[x.kind]}</span>
+                  <div className="t-main"><div className="t-title">{x.title}</div>{x.context && <div className="small muted">{x.context}</div>}</div>
+                  <button className="btn sm" onClick={() => x.reopen()}>Reopen</button>
+                </div>
+              )) : <div className="empty">Things you finish today stay listed here, so a tick is never lost.</div>}
+            </div>
+          </div>
         </div>
 
         <div className="stack">
@@ -130,8 +144,8 @@ export function Today({ open, go }: { open: (t: Task) => void; go: (v: View) => 
             <div className="card-h">Routines today<span className="grow" /><button className="btn ghost sm" onClick={() => go('routines')}>All</button></div>
             <div className="card-b">
               {todaysRoutines.length ? todaysRoutines.map((r) => (
-                <div key={r.id} className="trow" onClick={() => save('routines', { ...r, log: toggle(r.log, t0) })}>
-                  <Check on={!!r.log[t0]} onClick={() => save('routines', { ...r, log: toggle(r.log, t0) })} />
+                <div key={r.id} className="trow" style={{ cursor: 'default' }}>
+                  <Check on={!!r.log[t0]} onClick={() => toggleRoutineDay(r, t0)} label={`Mark ${r.title} done today`} />
                   <div className="t-main">
                     <div className="t-title" style={r.log[t0] ? { textDecoration: 'line-through', color: 'var(--ink-3)' } : undefined}>{r.title}</div>
                     <div className="t-meta">

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTasks } from '../lib/hooks';
 import { QUADRANTS, quadrantOf, quadrantValues, score, dueLabel, type Quadrant } from '../lib/priority';
-import { save } from '../lib/db';
+import { saveWithUndo } from '../lib/undo';
 import { newTask } from '../lib/models';
 import { ViewHead } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -22,7 +22,7 @@ export function Matrix({ open }: { open: (t: Task) => void }) {
     return g;
   }, [tasks, showDone]);
 
-  const moveTo = (t: Task, q: Quadrant) => save('tasks', { ...t, ...quadrantValues(q) });
+  const moveTo = (t: Task, q: Quadrant) => saveWithUndo('tasks', t, { ...t, ...quadrantValues(q) }, `Moved to ${QUADRANTS[q].label}: ${t.title}`);
   const onDrop = (q: Quadrant, e: React.DragEvent) => {
     e.preventDefault(); setOver(null);
     const id = e.dataTransfer.getData('text/plain');

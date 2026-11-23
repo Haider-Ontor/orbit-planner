@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('orbitDesktop', {
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   setBadge: (n) => ipcRenderer.invoke('set-badge', n),
   installUpdate: (url) => ipcRenderer.invoke('update-install', url),
+  writeBackup: (name, json) => ipcRenderer.invoke('backup-write', name, json),
+  openBackupFolder: () => ipcRenderer.invoke('backup-open-folder'),
   onUpdateProgress: (cb) => {
     const h = (_e, p) => cb(p);
     ipcRenderer.on('update-progress', h);

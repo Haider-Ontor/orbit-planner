@@ -10,6 +10,7 @@ import { TaskEditor } from './components/TaskEditor';
 import { Today } from './views/Today';
 import { Matrix } from './views/Matrix';
 import { Goals } from './views/Goals';
+import { History } from './views/History';
 import { Tasks } from './views/Tasks';
 import { Routines } from './views/Routines';
 import { Projects } from './views/Projects';
@@ -30,6 +31,7 @@ const NAV: { id: View; label: string; icon: string }[] = [
   { id: 'notes', label: 'Notes & voice', icon: 'notes' },
   { id: 'calendar', label: 'Agenda', icon: 'calendar' },
   { id: 'capture', label: 'Smart capture', icon: 'capture' },
+  { id: 'history', label: 'Done & history', icon: 'check' },
 ];
 const TABS: { id: View; label: string; icon: string }[] = [
   { id: 'today', label: 'Today', icon: 'today' },
@@ -95,6 +97,7 @@ export default function App() {
       <main className="main">
         {view === 'today' && <Today open={open} go={go} />}
         {view === 'goals' && <Goals />}
+        {view === 'history' && <History open={open} />}
         {view === 'matrix' && <Matrix open={open} />}
         {view === 'tasks' && <Tasks open={open} />}
         {view === 'routines' && <Routines />}

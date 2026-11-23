@@ -3,17 +3,20 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './styles.css';
 import { removeOldSamples } from './lib/models';
+import { ensurePersistentStorage, startAutoBackup } from './lib/backup';
 import { initSync } from './lib/sync';
 import { onLocalChange } from './lib/db';
 import { startDesktopReminders, rescheduleAndroid } from './lib/notify';
 import { syncCalendar, gcalAvailable } from './lib/gcal';
 
 async function boot() {
+  ensurePersistentStorage();
   try { await removeOldSamples(); } catch (e) { console.warn('sample cleanup failed', e); }
   createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
 
   initSync().catch((e) => console.warn('sync init failed', e));
   startDesktopReminders();
+  startAutoBackup();
   rescheduleAndroid();
   onLocalChange(() => rescheduleAndroid());
 

@@ -2,11 +2,38 @@ import { useEffect, useState } from 'react';
 import { useSettings, setSettings } from '../lib/settings';
 import { useSync, signIn, signOut, initSync, syncNow } from '../lib/sync';
 import { connectGoogle, disconnectGoogle, gcalAvailable, syncCalendar } from '../lib/gcal';
-import { desktop, isDesktop, platformName, openLink } from '../lib/platform';
+import { desktop, isDesktop, isAndroid, platformName, openLink } from '../lib/platform';
+import { exportAll, restoreFrom, dailySnapshot } from '../lib/backup';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { SYNC_TABLES } from '../lib/types';
 import { ViewHead, toast, errMsg, Progress } from '../components/ui';
 import { APP_VERSION, RELEASES_URL, checkForUpdate, installUpdate, type UpdateInfo } from '../lib/update';
+
+function Snapshots({ onRestored }: { onRestored: () => void }) {
+  const snaps = useLiveQuery(() => db.snapshots.orderBy('createdAt').reverse().toArray(), [], []);
+  const [open, setOpen] = useState(false);
+  if (!snaps.length) return <p>The first daily backup is taken a few seconds after Orbit starts.</p>;
+  const label = (c: Record<string, number>) => [`${c.tasks ?? 0} to-dos`, `${c.goals ?? 0} goals`, `${c.projects ?? 0} plans`, `${c.notes ?? 0} notes`, `${c.routines ?? 0} routines`].join(' · ');
+  const list = open ? snaps : snaps.slice(0, 3);
+  return (
+    <div className="snaps">
+      {list.map((s) => (
+        <div key={s.id} className="snap-row">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <b>{new Date(s.createdAt).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</b>
+            <div className="small muted">{label(s.counts)}</div>
+          </div>
+          <button className="btn sm" onClick={async () => {
+            if (!confirm('Bring back everything as it was in this backup? Items you created since are kept.')) return;
+            try { const n = await restoreFrom(s.data); onRestored(); toast(`Restored ${n} records from the backup`); } catch (e) { toast(errMsg(e), true); }
+          }}>Restore</button>
+        </div>
+      ))}
+      {snaps.length > 3 && <button className="linkish small" onClick={() => setOpen(!open)}>{open ? 'Show fewer' : `Show all ${snaps.length} daily backups`}</button>}
+    </div>
+  );
+}
 
 function UpdateSection() {
   const [info, setInfo] = useState<UpdateInfo | null>(null);
@@ -82,18 +109,15 @@ export function Settings() {
   };
 
   const exportJSON = async () => {
-    const out: Record<string, unknown> = { app: 'orbit', version: 1, exportedAt: new Date().toISOString() };
-    for (const k of SYNC_TABLES) out[k] = await db[k].toArray();
-    const blob = new Blob([JSON.stringify(out, null, 1)], { type: 'application/json' });
+    const { json } = await exportAll();
+    const blob = new Blob([json], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `orbit-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click();
   };
   const importJSON = (file: File) => act('import', async () => {
-    const j = JSON.parse(await file.text());
-    if (j.app !== 'orbit') throw new Error('Not an Orbit backup file.');
-    let n = 0;
-    for (const k of SYNC_TABLES) for (const r of (j[k] || [])) { await db[k].put({ ...r, dirty: 1, updated_at: Date.now() }); n++; }
+    if (!confirm('Bring back everything in this backup file? Items you created since are kept.')) return '';
+    const n = await restoreFrom(await file.text());
     syncNow();
-    return `Imported ${n} records`;
+    return `Restored ${n} records`;
   });
 
   return (
@@ -209,15 +233,25 @@ export function Settings() {
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="settings-sec">
-          <h3>Appearance & data</h3>
+          <h3>💾 Your data & backups</h3>
+          <p>Everything is saved on this device the moment you change it. Finished items are never removed: they move to <b>Done & history</b>, and deleted items stay restorable for 30 days. Orbit also keeps a copy of all your data once a day{isDesktop() ? ', both inside the app and as a file in Documents\Orbit Backups' : ''}. Turn on cloud sync to also keep a copy online and on your other device.</p>
+          <Snapshots onRestored={() => syncNow()} />
+          <div className="row wrap">
+            <button className="btn" onClick={() => act('snap', async () => { await dailySnapshot(true); return 'Backup saved'; })}>Back up now</button>
+            {isDesktop() && <button className="btn" onClick={() => desktop()?.openBackupFolder?.()}>Open backup folder</button>}
+            {!isAndroid() && <button className="btn" onClick={exportJSON}>Save backup file…</button>}
+            <label className="btn">Restore from file…<input type="file" accept="application/json" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) importJSON(f); }} /></label>
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="settings-sec">
+          <h3>Appearance</h3>
           <div className="seg" style={{ alignSelf: 'flex-start' }}>
             {(['system', 'light', 'dark'] as const).map((t) => <button key={t} className={s.theme === t ? 'on' : ''} onClick={() => setSettings({ theme: t })}>{t[0].toUpperCase() + t.slice(1)}</button>)}
           </div>
-          <div className="row wrap">
-            <button className="btn" onClick={exportJSON}>Export backup (JSON)</button>
-            <label className="btn">Import backup<input type="file" accept="application/json" hidden onChange={(e) => e.target.files?.[0] && importJSON(e.target.files[0])} /></label>
-            <button className="btn ghost" onClick={() => openLink('https://console.anthropic.com/settings/keys')}>Get a Claude key ↗</button>
-          </div>
+          <div><button className="btn ghost" onClick={() => openLink('https://console.anthropic.com/settings/keys')}>Get a Claude key ↗</button></div>
         </div>
       </div>
     </div>

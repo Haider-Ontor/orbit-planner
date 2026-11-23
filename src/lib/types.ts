@@ -50,6 +50,7 @@ export interface PlanSub {
   name: string;
   due: string | null;   // YYYY-MM-DD
   done: boolean;
+  doneAt?: number | null; // when it was ticked (for the history log)
 }
 export interface PlanTask {
   id: string;
@@ -57,6 +58,7 @@ export interface PlanTask {
   start: string | null; // YYYY-MM-DD
   due: string | null;   // YYYY-MM-DD
   done: boolean;
+  doneAt?: number | null;
   subs: PlanSub[];
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNotes, useProjects } from '../lib/hooks';
-import { db, save, remove } from '../lib/db';
+import { db, save } from '../lib/db';
+import { removeWithUndo } from '../lib/undo';
 import { newNote } from '../lib/models';
 import { startVoice, transcribe, type VoiceSession } from '../lib/voice';
 import { organizeNote, type Extraction } from '../lib/ai';
@@ -93,7 +94,7 @@ export function Notes() {
         {current ? (
           <NoteEditor key={current.id} note={current} projects={projects} busy={busy}
             onOrganize={() => organize(current)} onBack={() => setMobileList(true)}
-            onDelete={async () => { await remove('notes', current.id); setSel(null); setMobileList(true); }} />
+            onDelete={async () => { await removeWithUndo('notes', current.id, current.title || 'note'); setSel(null); setMobileList(true); }} />
         ) : (
           <div className="card"><div className="empty" style={{ padding: 30 }}>Select a note, write a new one, or record a voice note.</div></div>
         )}

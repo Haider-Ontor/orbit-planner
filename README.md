@@ -41,6 +41,9 @@ Everything works offline straight away. To link the phone and the PC, turn on cl
 | **All tasks** | Search, filter by project/quadrant, sort by priority or deadline |
 | **Routines** | Daily / weekday / weekly / every-N-days habits with a 7-day check grid, streaks and 30-day completion rate |
 | **Projects & learning** | Each project is a list of tasks, each with sub-tasks that have deadlines. Tick things off, see progress, and switch to a **Timeline** view (bars per task, a marker for every sub-task deadline, a today line). Built for the phone: big tap targets and the phone's own date picker. Upcoming and overdue steps also appear on **Today**. |
+| **Done & history** | Everything you finished, day by day: to-dos, plan steps, routines and goals, with a bar chart for the week. Each item has **Reopen** in case it was ticked by mistake. **Recently deleted** keeps deleted items for 30 days with **Restore**. |
+| **Undo** | Ticking, unticking, deleting, moving or archiving shows an **Undo** button for 10 seconds. Finished items never vanish: they stay under **Done today** on Today and in Done & history. |
+| **Backups** | Saved instantly on the device, plus an automatic daily copy inside the app (last 14 days, Settings → Your data & backups → Restore). On Windows the same copy is also written to `Documents\Orbit Backups` (last 30 days). |
 | **Updates** | **Settings → Updates** checks GitHub for a newer version and installs it, on Windows and Android. |
 | **Notes & voice** | Text notes and voice notes (speech → text). "Organise into tasks" turns a note into tasks with Claude. |
 | **Agenda** | Google Calendar events + timed tasks + deadlines + routines for the next 7/14/30 days |

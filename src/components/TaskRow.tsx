@@ -1,12 +1,13 @@
 import type { Task, Project } from '../lib/types';
-import { save } from '../lib/db';
+import { saveWithUndo, doneMsg } from '../lib/undo';
 import { QUADRANTS, quadrantOf, dueLabel } from '../lib/priority';
 import { niceDate, niceTime, timeOfISO } from '../lib/dates';
 import { Check } from './ui';
 
+/** Tick / untick a to-do, with Undo. Finished to-dos stay listed under Done. */
 export function toggleDone(t: Task) {
   const done = t.status !== 'done';
-  return save('tasks', { ...t, status: done ? 'done' : 'todo', doneAt: done ? Date.now() : null });
+  return saveWithUndo('tasks', t, { ...t, status: done ? 'done' : 'todo', doneAt: done ? Date.now() : null }, doneMsg(t.title, done));
 }
 
 export function TaskRow({ t, projects, onOpen, showQuadrant = true }: { t: Task; projects?: Map<string, Project>; onOpen: (t: Task) => void; showQuadrant?: boolean }) {

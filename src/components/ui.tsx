@@ -1,18 +1,32 @@
 import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import { Icon } from './icons';
 
-/* ---------- toast ---------- */
-let toastState: { msg: string; err: boolean; id: number } | null = null;
+/* ---------- toast (with optional Undo) ---------- */
+export interface ToastAction { label: string; run: () => unknown }
+let toastState: { msg: string; err: boolean; id: number; action?: ToastAction } | null = null;
 const toastSubs = new Set<() => void>();
-export function toast(msg: string, err = false) {
-  const id = Date.now();
-  toastState = { msg, err, id };
-  toastSubs.forEach((f) => f());
-  setTimeout(() => { if (toastState?.id === id) { toastState = null; toastSubs.forEach((f) => f()); } }, err ? 6000 : 2800);
+const notify = () => toastSubs.forEach((f) => f());
+export function toast(msg: string, err = false, action?: ToastAction) {
+  const id = Date.now() + Math.random();
+  toastState = { msg, err, id, action };
+  notify();
+  setTimeout(() => { if (toastState?.id === id) { toastState = null; notify(); } }, action ? 10000 : err ? 6000 : 2800);
 }
 export function Toaster() {
   const t = useSyncExternalStore((cb) => { toastSubs.add(cb); return () => toastSubs.delete(cb); }, () => toastState);
-  return t ? <div className={'toast' + (t.err ? ' err' : '')} role="status">{t.msg}</div> : null;
+  if (!t) return null;
+  return (
+    <div className={'toast' + (t.err ? ' err' : '')} role="status">
+      <span>{t.msg}</span>
+      {t.action && (
+        <button className="toast-btn" onClick={async () => {
+          const a = t.action!;
+          toastState = null; notify();
+          try { await a.run(); toast('Undone'); } catch (e) { toast(errMsg(e), true); }
+        }}>{t.action.label}</button>
+      )}
+    </div>
+  );
 }
 export const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Project, PlanTask, PlanSub } from '../lib/types';
 import { newPlanTask, newPlanSub, taskProgress, stepCounts } from '../lib/models';
 import { today, niceDate, daysBetween, addDays, parseDate } from '../lib/dates';
-import { Check, Progress } from './ui';
+import { Check, Progress, toast } from './ui';
+import { doneMsg } from '../lib/undo';
 import { Icon } from './icons';
 
 /* A plan = tasks, each with sub-tasks that have deadlines.
@@ -43,17 +44,38 @@ export function PlanEditor({ project, onChange, compact }: { project: Project; o
   const [justAdded, setJustAdded] = useState<string | null>(null);
 
   useEffect(() => { setPlan(project.plan); }, [project.id, project.updated_at]); // eslint-disable-line react-hooks/exhaustive-deps
+  const latest = useRef(project);
+  latest.current = project;
 
-  const commit = (next: PlanTask[]) => { setPlan(next); onChange({ ...project, plan: next }); };
+  const commit = (next: PlanTask[]) => { setPlan(next); onChange({ ...latest.current, plan: next }); };
+  /** Commit and offer Undo back to the plan as it was before this change. */
+  const commitUndo = (next: PlanTask[], msg: string) => {
+    const before = plan;
+    commit(next);
+    toast(msg, false, { label: 'Undo', run: () => commit(before) });
+  };
   const upTask = (id: string, p: Partial<PlanTask>) => commit(plan.map((t) => (t.id === id ? { ...t, ...p } : t)));
   const upSub = (tid: string, sid: string, p: Partial<PlanSub>) => commit(plan.map((t) => {
     if (t.id !== tid) return t;
     const subs = t.subs.map((s) => (s.id === sid ? { ...s, ...p } : s));
     return { ...t, subs, done: subs.length ? subs.every((s) => s.done) : t.done };
   }));
+  const toggleSub = (t: PlanTask, s: PlanSub) => {
+    const done = !s.done;
+    const now = Date.now();
+    commitUndo(plan.map((x) => {
+      if (x.id !== t.id) return x;
+      const subs = x.subs.map((y) => (y.id === s.id ? { ...y, done, doneAt: done ? now : null } : y));
+      const all = subs.every((y) => y.done);
+      return { ...x, subs, done: all, doneAt: all ? (x.doneAt ?? now) : null };
+    }), doneMsg(s.name, done));
+  };
   const toggleTask = (t: PlanTask) => {
     const done = !t.done;
-    upTask(t.id, { done, subs: t.subs.map((s) => ({ ...s, done })) });
+    const now = Date.now();
+    // Ticking a task finishes its open sub-tasks; unticking reopens only the task itself.
+    const subs = done ? t.subs.map((s) => (s.done ? s : { ...s, done: true, doneAt: now })) : t.subs;
+    commitUndo(plan.map((x) => (x.id === t.id ? { ...x, done, doneAt: done ? now : null, subs } : x)), doneMsg(t.name, done));
   };
   const addTask = () => {
     const name = newTask.trim();
@@ -72,7 +94,8 @@ export function PlanEditor({ project, onChange, compact }: { project: Project; o
     const j = i + d; if (j < 0 || j >= plan.length) return;
     const next = [...plan]; [next[i], next[j]] = [next[j], next[i]]; commit(next);
   };
-  const del = (t: PlanTask) => { if (t.subs.length === 0 || confirm(`Delete "${t.name}" and its ${t.subs.length} sub-task(s)?`)) commit(plan.filter((x) => x.id !== t.id)); };
+  const del = (t: PlanTask) => commitUndo(plan.filter((x) => x.id !== t.id), `Deleted ${t.name || 'task'}${t.subs.length ? ` and ${t.subs.length} sub-task(s)` : ''}`);
+  const delSub = (t: PlanTask, s: PlanSub) => commitUndo(plan.map((x) => (x.id === t.id ? { ...x, subs: x.subs.filter((y) => y.id !== s.id) } : x)), `Deleted ${s.name || 'sub-task'}`);
 
   const { done, total } = stepCounts({ ...project, plan });
   const pct = total ? Math.round((done / total) * 100) : 0;
@@ -128,10 +151,10 @@ export function PlanEditor({ project, onChange, compact }: { project: Project; o
                     <div className="subs">
                       {t.subs.map((s) => (
                         <div key={s.id} className={'psub' + (s.done ? ' done' : '')}>
-                          <Check on={s.done} onClick={() => upSub(t.id, s.id, { done: !s.done })} label={`Mark ${s.name} done`} />
+                          <Check on={s.done} onClick={() => toggleSub(t, s)} label={`Mark ${s.name} done`} />
                           <NameInput value={s.name} placeholder="Sub-task" onCommit={(v) => upSub(t.id, s.id, { name: v })} />
                           <DateChip value={s.due} placeholder="Due" done={s.done} onChange={(v) => upSub(t.id, s.id, { due: v })} />
-                          <button className="icon-btn" onClick={() => upTask(t.id, { subs: t.subs.filter((x) => x.id !== s.id) })} aria-label="Delete sub-task"><Icon name="x" size={14} /></button>
+                          <button className="icon-btn" onClick={() => delSub(t, s)} aria-label="Delete sub-task"><Icon name="x" size={14} /></button>
                         </div>
                       ))}
                       <AddSub defaultDue={t.due} onAdd={(name, due) => addSub(t, name, due)} />

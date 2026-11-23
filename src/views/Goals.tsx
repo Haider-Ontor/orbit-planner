@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useGoals, useProjects } from '../lib/hooks';
-import { save, remove } from '../lib/db';
+import { save, remove, restore } from '../lib/db';
+import { saveWithUndo } from '../lib/undo';
 import { newGoal, goalProgress, goalPlan, planFromAI, weeksCarried, weekEnd, stepCounts } from '../lib/models';
 import { planGoal } from '../lib/ai';
 import { useSettings } from '../lib/settings';
@@ -83,7 +84,7 @@ export function Goals() {
                   <div className="t-meta"><span className="chip">Set for week of {weekLabel(g.weekStart)}</span><span className="chip">{goalProgress(g, pmap)}% done</span></div>
                 </div>
                 <button className="btn sm primary" onClick={() => save('goals', { ...g, weekStart: thisWeek })}>Continue this week</button>
-                <button className="btn sm ghost" onClick={() => save('goals', { ...g, status: 'dropped' })}>Drop</button>
+                <button className="btn sm ghost" onClick={() => saveWithUndo('goals', g, { ...g, status: 'dropped' }, `Dropped: ${g.title}`)}>Drop</button>
               </div>
             ))}
           </div>
@@ -114,7 +115,7 @@ function GoalCard({ g, project, progress }: { g: Goal; project?: Project; progre
   const done = g.status === 'done';
   const steps = project ? stepCounts(project) : null;
 
-  const toggleDone = () => save('goals', { ...g, status: done ? 'active' : 'done', doneAt: done ? null : Date.now() });
+  const toggleDone = () => saveWithUndo('goals', g, { ...g, status: done ? 'active' : 'done', doneAt: done ? null : Date.now() }, done ? `Goal reopened: ${g.title}` : `Goal achieved: ${g.title}`);
 
   const makePlan = async (withAI: boolean) => {
     setBusy(true);
@@ -132,8 +133,10 @@ function GoalCard({ g, project, progress }: { g: Goal; project?: Project; progre
 
   const del = async () => {
     if (!confirm(`Delete goal "${g.title}"${project ? ' and its steps' : ''}?`)) return;
-    if (project && project.kind === 'goal') await remove('projects', project.id);
+    const withPlan = project && project.kind === 'goal';
+    if (withPlan) await remove('projects', project.id);
     await remove('goals', g.id);
+    toast(`Deleted goal: ${g.title}`, false, { label: 'Undo', run: async () => { await restore('goals', g.id); if (withPlan) await restore('projects', project.id); } });
   };
 
   return (
@@ -172,7 +175,7 @@ function GoalCard({ g, project, progress }: { g: Goal; project?: Project; progre
           : <button className="btn sm" onClick={() => setPlanning(!planning)}><Icon name="tasks" size={14} /> Break into steps</button>}
         <button className="btn sm ghost" onClick={() => setOpen(!open)}>{open ? 'Less' : 'Notes'}</button>
         <span style={{ flex: 1 }} />
-        {!done && <button className="btn sm ghost" onClick={() => save('goals', { ...g, weekStart: addDays(g.weekStart, 7) })} title="Move to next week">Next week →</button>}
+        {!done && <button className="btn sm ghost" onClick={() => saveWithUndo('goals', g, { ...g, weekStart: addDays(g.weekStart, 7) }, `Moved to next week: ${g.title}`)} title="Move to next week">Next week →</button>}
         <button className="btn sm ghost danger" onClick={del} aria-label="Delete goal"><Icon name="trash" size={14} /></button>
       </div>
 

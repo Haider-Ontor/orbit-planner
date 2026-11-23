@@ -2,6 +2,7 @@ import { db, uid, save, alive } from './db';
 import { today, mondayOf, addDays, daysBetween } from './dates';
 import type { Task, Routine, Project, Note, Goal, PlanTask, PlanSub } from './types';
 import type { ExtractedTask } from './ai';
+import { saveWithUndo, doneMsg } from './undo';
 
 export function newTask(p: Partial<Task> = {}): Task {
   return {
@@ -101,13 +102,31 @@ export function deadlinesOf(projects: Project[]): Deadline[] {
 
 /** Tick a task or sub-task done from outside the plan editor. */
 export async function toggleStep(p: Project, taskId: string, subId: string | null) {
+  const now = Date.now();
+  let label = '', done = false;
   const plan = p.plan.map((t) => {
     if (t.id !== taskId) return t;
-    if (!subId) return { ...t, done: !t.done };
-    const subs = t.subs.map((s) => (s.id === subId ? { ...s, done: !s.done } : s));
-    return { ...t, subs, done: subs.length > 0 && subs.every((s) => s.done) };
+    if (!subId) {
+      done = !t.done; label = t.name;
+      return { ...t, done, doneAt: done ? now : null, subs: done ? t.subs.map((s) => (s.done ? s : { ...s, done: true, doneAt: now })) : t.subs };
+    }
+    const subs = t.subs.map((s) => {
+      if (s.id !== subId) return s;
+      done = !s.done; label = s.name;
+      return { ...s, done, doneAt: done ? now : null };
+    });
+    const all = subs.length > 0 && subs.every((s) => s.done);
+    return { ...t, subs, done: all, doneAt: all ? (t.doneAt ?? now) : null };
   });
-  await save('projects', { ...p, plan });
+  await saveWithUndo('projects', p, { ...p, plan }, doneMsg(label, done));
+}
+
+/** Tick / untick a routine for one day, with Undo. */
+export function toggleRoutineDay(r: Routine, day: string) {
+  const log = { ...r.log };
+  const done = !log[day];
+  if (done) log[day] = 1; else delete log[day];
+  return saveWithUndo('routines', r, { ...r, log }, doneMsg(r.title, done));
 }
 
 /* ---------------- weekly goals ---------------- */

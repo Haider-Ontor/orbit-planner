@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useProjects, useTasks, useNotes } from '../lib/hooks';
-import { save, remove } from '../lib/db';
+import { save } from '../lib/db';
+import { removeWithUndo, saveWithUndo } from '../lib/undo';
 import { newProject, projectProgress, stepCounts, deadlinesOf, newTask } from '../lib/models';
 import { PlanEditor } from '../components/Plan';
 import { TaskRow } from '../components/TaskRow';
@@ -12,15 +13,15 @@ import type { Project, Task } from '../lib/types';
 export function Projects({ open, projectId, setProjectId }: { open: (t: Task) => void; projectId: string | null; setProjectId: (id: string | null) => void }) {
   const projects = useProjects();
   const [creating, setCreating] = useState(false);
-  const [kindFilter, setKindFilter] = useState<'all' | 'project' | 'learning'>('all');
+  const [kindFilter, setKindFilter] = useState<'all' | 'project' | 'learning' | 'archived'>('all');
   const current = projects.find((p) => p.id === projectId);
   if (current) return <ProjectDetail p={current} open={open} back={() => setProjectId(null)} />;
 
-  const shown = projects.filter((p) => !p.archived && p.kind !== 'goal' && (kindFilter === 'all' || p.kind === kindFilter));
+  const shown = projects.filter((p) => p.kind !== 'goal' && (kindFilter === 'archived' ? p.archived : !p.archived && (kindFilter === 'all' || p.kind === kindFilter)));
   return (
     <div className="view">
       <ViewHead title="Projects & learning" sub="Break each project into tasks and sub-tasks with deadlines.">
-        <div className="seg">{(['all', 'project', 'learning'] as const).map((k) => <button key={k} className={kindFilter === k ? 'on' : ''} onClick={() => setKindFilter(k)}>{k === 'all' ? 'All' : k === 'project' ? 'Projects' : 'Learning'}</button>)}</div>
+        <div className="seg">{(['all', 'project', 'learning', 'archived'] as const).map((k) => <button key={k} className={kindFilter === k ? 'on' : ''} onClick={() => setKindFilter(k)}>{k === 'all' ? 'All' : k === 'project' ? 'Projects' : k === 'learning' ? 'Learning' : 'Archived'}</button>)}</div>
         <button className="btn primary" onClick={() => setCreating(true)}><Icon name="plus" size={16} /> New</button>
       </ViewHead>
       <div className="proj-grid">
@@ -45,7 +46,7 @@ export function Projects({ open, projectId, setProjectId }: { open: (t: Task) =>
             </div>
           );
         })}
-        {!shown.length && <div className="card"><div className="empty" style={{ padding: 24 }}>No projects yet. Tap <b>New</b> to start one.</div></div>}
+        {!shown.length && <div className="card"><div className="empty" style={{ padding: 24 }}>{kindFilter === 'archived' ? 'No archived projects.' : <>No projects yet. Tap <b>New</b> to start one.</>}</div></div>}
       </div>
       {creating && <NewProject onClose={(id) => { setCreating(false); if (id) setProjectId(id); }} />}
       <button className="fab" aria-label="New project" onClick={() => setCreating(true)}>+</button>
@@ -87,7 +88,7 @@ function ProjectDetail({ p, open, back }: { p: Project; open: (t: Task) => void;
         <button className="btn ghost" onClick={back}><Icon name="back" size={16} /> Projects</button>
         <div className="grow" />
         <button className="btn sm" onClick={() => setRenaming(true)}>Edit</button>
-        <button className="btn sm danger" onClick={async () => { if (confirm(`Delete "${p.name}"?`)) { await remove('projects', p.id); back(); } }}>Delete</button>
+        <button className="btn sm danger" onClick={async () => { if (confirm(`Delete "${p.name}"? You can restore it from Done & history → Recently deleted.`)) { await removeWithUndo('projects', p.id, p.name); back(); } }}>Delete</button>
       </div>
       <h1 style={{ margin: '0 0 14px', fontSize: 22, overflowWrap: 'anywhere' }}>{p.name}</h1>
       <div className="card" style={{ padding: 14 }}>
@@ -115,7 +116,7 @@ function EditProject({ p, onClose }: { p: Project; onClose: () => void }) {
   const ok = async () => { await save('projects', { ...p, name: name.trim() || p.name, kind }); onClose(); };
   return (
     <Modal title="Edit project" onClose={onClose} footer={<>
-      <button className="btn" onClick={async () => { await save('projects', { ...p, archived: !p.archived }); onClose(); }}>{p.archived ? 'Unarchive' : 'Archive'}</button>
+      <button className="btn" onClick={async () => { await saveWithUndo('projects', p, { ...p, archived: !p.archived }, p.archived ? `Unarchived: ${p.name}` : `Archived: ${p.name} (see Projects → Archived)`); onClose(); }}>{p.archived ? 'Unarchive' : 'Archive'}</button>
       <div className="grow" /><button className="btn" onClick={onClose}>Cancel</button><button className="btn primary" onClick={ok}>Save</button></>}>
       <label className="field">Name<input className="input" value={name} onChange={(e) => setName(e.target.value)} /></label>
       {p.kind !== 'goal' && (

@@ -173,6 +173,27 @@ ipcMain.handle('update-install', async (e, url) => {
   return true;
 });
 
+/* ------------------------------------------------------------------ *
+ *  Daily backup files: Documents\Orbit Backups\orbit-YYYY-MM-DD.json
+ * ------------------------------------------------------------------ */
+const backupDir = () => path.join(app.getPath('documents'), 'Orbit Backups');
+ipcMain.handle('backup-write', async (_e, name, json) => {
+  if (!/^orbit-\d{4}-\d{2}-\d{2}\.json$/.test(name) || typeof json !== 'string') throw new Error('bad backup name');
+  const fs = require('node:fs/promises');
+  const dir = backupDir();
+  await fs.mkdir(dir, { recursive: true });
+  const file = path.join(dir, name);
+  await fs.writeFile(file + '.tmp', json, 'utf8');
+  await fs.rename(file + '.tmp', file);
+  const files = (await fs.readdir(dir)).filter((f) => /^orbit-\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort();
+  for (const f of files.slice(0, Math.max(0, files.length - 30))) await fs.unlink(path.join(dir, f)).catch(() => {});
+  return file;
+});
+ipcMain.handle('backup-open-folder', async () => {
+  await require('node:fs/promises').mkdir(backupDir(), { recursive: true });
+  await shell.openPath(backupDir());
+});
+
 ipcMain.handle('launch-at-login', (_e, on) => { app.setLoginItemSettings({ openAtLogin: !!on, args: ['--hidden'] }); return true; });
 ipcMain.handle('get-launch-at-login', () => app.getLoginItemSettings().openAtLogin);
 ipcMain.handle('open-external', (_e, url) => {
