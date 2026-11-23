@@ -33,7 +33,7 @@ export function Projects({ open, projectId, setProjectId }: { open: (t: Task) =>
           const next = dl.find((d) => d.due >= today());
           return (
             <div key={p.id} className="card proj" onClick={() => setProjectId(p.id)}>
-              <div className="row"><span className="chip">{p.kind === 'learning' ? '📚 Learning' : '🛠 Project'}</span><span style={{ flex: 1 }} />
+              <div className="row"><span className="chip">{p.kind === 'learning' ? 'Learning' : 'Project'}</span><span style={{ flex: 1 }} />
                 {late > 0 && <span className="chip over">{late} overdue</span>}
                 {total > 0 && pr >= 100 && <span className="chip ok">Complete</span>}
               </div>

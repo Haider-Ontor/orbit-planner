@@ -68,4 +68,4 @@ export function completions(tasks: Task[], projects: Project[], routines: Routin
 }
 
 export const KIND_LABEL: Record<DoneKind, string> = { task: 'To-do', step: 'Step', routine: 'Routine', goal: 'Goal' };
-export const KIND_ICON: Record<DoneKind, string> = { task: '✓', step: '◆', routine: '↻', goal: '🎯' };
+export const KIND_ICON: Record<DoneKind, string> = { task: '✓', step: '◆', routine: '↻', goal: '★' };

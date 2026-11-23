@@ -4,6 +4,7 @@ import { save, db } from '../lib/db';
 import { newGoal, goalPlan, newPlanTask, newPlanSub } from '../lib/models';
 import { today, addDays, mondayOf, parseDate } from '../lib/dates';
 import { Modal, toast } from './ui';
+import { Icon } from './icons';
 
 /* Step-by-step goal setup for people who have never used a goal "framework":
  * 1 what · 2 what kind (picks SMART and/or MTO for them) · 3 the criteria ·
@@ -100,13 +101,13 @@ export function GoalWizard({ initial, startWeek, onClose }: { initial?: Goal; st
       {step === 2 && (<>
         <h3 className="wiz-q">What kind of goal is it?</h3>
         <div className="kind-grid">
-          <KindCard on={kind === 'smart'} onClick={() => setKind('smart')} icon="🎯" title="Finish something"
+          <KindCard on={kind === 'smart'} onClick={() => setKind('smart')} icon="goals" title="Finish something"
             text="A result with an end: submit a report, build a prototype, pass an exam. Uses SMART so it is clear when it is done." />
-          <KindCard on={kind === 'mto'} onClick={() => setKind('mto')} icon="📈" title="Build a habit or reach a number"
+          <KindCard on={kind === 'mto'} onClick={() => setKind('mto')} icon="trend" title="Build a habit or reach a number"
             text="Something you repeat or count: study hours, workouts, savings. Uses Minimum / Target / Outrageous, so a small win still counts." />
-          <KindCard on={kind === 'both'} onClick={() => setKind('both')} icon="⚡" title="Both"
+          <KindCard on={kind === 'both'} onClick={() => setKind('both')} icon="layers" title="Both"
             text="A clear SMART goal with three levels for its number. Good for most bigger goals." />
-          <KindCard on={kind === 'none'} onClick={() => setKind('none')} icon="✏️" title="Keep it simple"
+          <KindCard on={kind === 'none'} onClick={() => setKind('none')} icon="pen" title="Keep it simple"
             text="Just the goal and its steps, no extra questions." />
         </div>
         <p className="small muted">Not sure? Ask yourself: <b>will I be done once it's finished?</b> Yes → <i>Finish something</i>. If you want to keep doing it or hit a number → <i>Habit or number</i>.</p>
@@ -147,8 +148,8 @@ export function GoalWizard({ initial, startWeek, onClose }: { initial?: Goal; st
           </label>
         </div>
         <div className="kind-grid two">
-          <KindCard on={priority === 'high'} onClick={() => setPriority('high')} icon="⭐" title="Top priority" text="Most important or most impact. Shown first; put your energy here." />
-          <KindCard on={priority === 'normal'} onClick={() => setPriority('normal')} icon="○" title="Normal" text="Worth doing, but it can wait behind your top goals." />
+          <KindCard on={priority === 'high'} onClick={() => setPriority('high')} icon="star" title="Top priority" text="Most important or most impact. Shown first; put your energy here." />
+          <KindCard on={priority === 'normal'} onClick={() => setPriority('normal')} icon="circle" title="Normal" text="Worth doing, but it can wait behind your top goals." />
         </div>
       </>)}
 
@@ -176,7 +177,7 @@ export function GoalWizard({ initial, startWeek, onClose }: { initial?: Goal; st
 function KindCard({ on, onClick, icon, title, text }: { on: boolean; onClick: () => void; icon: string; title: string; text: string }) {
   return (
     <button className={'kind-card' + (on ? ' on' : '')} onClick={onClick} aria-pressed={on}>
-      <span className="kind-ico">{icon}</span>
+      <span className="kind-ico"><Icon name={icon} size={20} /></span>
       <span><b>{title}</b><span className="small muted" style={{ display: 'block' }}>{text}</span></span>
     </button>
   );

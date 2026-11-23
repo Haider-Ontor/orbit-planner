@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import '@fontsource-variable/inter';
 import './styles.css';
 import { removeOldSamples } from './lib/models';
 import { ensurePersistentStorage, startAutoBackup } from './lib/backup';

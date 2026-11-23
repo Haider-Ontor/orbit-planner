@@ -103,7 +103,7 @@ function QuickAdd({ repeatFirst, onMore }: { repeatFirst: boolean; onMore: (t: T
       {repeat === 'once' && (
         <label className="switch big">
           <input type="checkbox" checked={important} onChange={(e) => setImportant(e.target.checked)} />
-          <span>⭐ This is important</span>
+          <span>Mark as important</span>
         </label>
       )}
     </Modal>

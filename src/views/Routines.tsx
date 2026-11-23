@@ -46,7 +46,7 @@ export function Routines() {
                     </button>
                   );
                 })}
-                <span className="streak">{st > 0 ? `🔥 ${st}` : '—'}</span>
+                <span className="streak">{st > 0 ? `${st} days` : '—'}</span>
               </div>
             );
           })}

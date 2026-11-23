@@ -26,14 +26,14 @@ export function Calendar({ open, go }: { open: (t: Task) => void; go: (v: View) 
       const d = addDays(t0, i);
       const items: Item[] = [];
       events.filter((e) => !e.fromOrbit && dateOfISO(e.start) === d).forEach((e) => items.push({
-        key: 'e' + e.id, time: e.allDay ? '' : timeOfISO(e.start), label: e.summary, kind: 'event', color: '#4a7fd4',
+        key: 'e' + e.id, time: e.allDay ? '' : timeOfISO(e.start), label: e.summary, kind: 'event', color: 'var(--navy)',
         sub: e.location, onClick: () => e.htmlLink && openLink(e.htmlLink),
       }));
       tasks.filter((t) => t.status !== 'done' && (t.start ? dateOfISO(t.start) === d : t.due === d)).forEach((t) => items.push({
         key: 't' + t.id, time: t.start ? timeOfISO(t.start) : t.dueTime ?? '', label: t.title, kind: 'task',
         color: QUADRANTS[quadrantOf(t)].color, onClick: () => open(t), sub: t.start ? 'Scheduled' : 'Deadline',
       }));
-      routines.filter((r) => isDueOn(r, d)).forEach((r) => items.push({ key: 'r' + r.id, time: r.time ?? '', label: r.title, kind: 'routine', color: '#9aa0a8', sub: 'Routine' }));
+      routines.filter((r) => isDueOn(r, d)).forEach((r) => items.push({ key: 'r' + r.id, time: r.time ?? '', label: r.title, kind: 'routine', color: 'var(--beige-strong)', sub: 'Routine' }));
       items.sort((a, b) => (a.time || '00:00').localeCompare(b.time || '00:00'));
       out.push({ date: d, items });
     }
@@ -48,7 +48,7 @@ export function Calendar({ open, go }: { open: (t: Task) => void; go: (v: View) 
 
   return (
     <div className="view">
-      <ViewHead title="Agenda" sub="Google Calendar events, timed tasks, deadlines and routines in one list.">
+      <ViewHead title="Calendar" sub="Google Calendar events, timed tasks, deadlines and routines in one list.">
         <div className="seg">{[7, 14, 30].map((n) => <button key={n} className={span === n ? 'on' : ''} onClick={() => setSpan(n)}>{n} days</button>)}</div>
         {gcalAvailable() && gcalConnected()
           ? <button className="btn" onClick={refresh} disabled={busy}><Icon name="sync" size={15} /> {busy ? 'Syncing…' : 'Sync Google'}</button>

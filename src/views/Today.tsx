@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { useTasks, useRoutines, useEvents, useProjects, useGoals } from '../lib/hooks';
 import { score, daysLeft, quadrantOf } from '../lib/priority';
-import { today, addDays, mondayOf, longToday, niceTime, timeOfISO, dateOfISO, niceDate, daysBetween } from '../lib/dates';
+import { today, addDays, mondayOf, niceTime, timeOfISO, dateOfISO, niceDate, daysBetween, parseDate } from '../lib/dates';
 import { isDueOn, streak } from '../lib/recurrence';
 import { goalProgress, goalCoversWeek, deadlinesOf, toggleStep, toggleRoutineDay } from '../lib/models';
 import { completions, KIND_ICON } from '../lib/history';
@@ -11,9 +12,8 @@ import { Icon } from '../components/icons';
 import { openQuickAdd } from '../components/QuickAdd';
 import type { Task, View } from '../lib/viewTypes';
 
-/* Today, as a dashboard: a "control panel" header (gauges, live clock, status
- * LED, a circuit-board backdrop), a 14-day "scope trace" of finished work,
- * then the lists that matter today. */
+/* Today: the visual centre of Orbit. Overview (gauges + key numbers), a small
+ * activity chart, then Do next first, with secondary lists collapsible. */
 
 export function Today({ open, go }: { open: (t: Task) => void; go: (v: View) => void }) {
   const tasks = useTasks();
@@ -41,143 +41,155 @@ export function Today({ open, go }: { open: (t: Task) => void; go: (v: View) => 
   const firstCount = active.filter((t) => quadrantOf(t) === 'first').length;
   const bestStreak = routines.reduce((m, r) => Math.max(m, streak(r)), 0);
 
-  // gauge values
   const todaysTasks = tasks.filter((t) => t.due === t0 || (t.start && dateOfISO(t.start) === t0));
   const tDone = todaysTasks.filter((t) => t.status === 'done').length + doneRoutines;
   const tTotal = todaysTasks.length + todaysRoutines.length;
   const goalAvg = weekGoals.length ? Math.round(weekGoals.reduce((a, g) => a + goalProgress(g, pmap), 0) / weekGoals.length) : 0;
-  const trace = Array.from({ length: 14 }, (_, i) => { const d = addDays(t0, i - 13); return { d, n: all.filter((x) => x.day === d).length }; });
+  const activity = Array.from({ length: 14 }, (_, i) => { const d = addDays(t0, i - 13); return { d, n: all.filter((x) => x.day === d).length }; });
 
   const hour = now.getHours();
   const greet = hour < 5 ? 'Working late' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const status = overdue.length
-    ? { tone: 'warn', text: `${overdue.length} overdue · needs attention` }
-    : dueToday.length ? { tone: 'ok', text: `${dueToday.length} due today · on track` } : { tone: 'ok', text: 'All clear · nothing due today' };
+    ? { tone: 'busy', text: `${overdue.length} overdue · needs attention` }
+    : dueToday.length ? { tone: 'ok', text: `${dueToday.length} due today · on track` } : { tone: 'ok', text: 'Nothing due today' };
+  const dateLine = now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
     <div className="view dash">
-      <section className="hero">
-        <CircuitBackdrop />
-        <div className="hero-l">
-          <div className="hero-status"><span className={'led ' + status.tone} />{status.text}</div>
+      <header className="dash-head">
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <div className="dash-eyebrow">{dateLine}</div>
           <h1>{greet}</h1>
-          <div className="hero-date">{longToday()}</div>
-          <div className="hero-clock" aria-label="Time">{String(now.getHours()).padStart(2, '0')}<span className="blink">:</span>{String(now.getMinutes()).padStart(2, '0')}</div>
-          <button className="hero-add" onClick={() => openQuickAdd()}><Icon name="plus" size={16} /> Add a task</button>
+          <div className="dash-status">
+            <span className={'dot ' + status.tone} />{status.text}
+            <span className="muted">·</span>
+            <span className="dash-clock">{String(now.getHours()).padStart(2, '0')}:{String(now.getMinutes()).padStart(2, '0')}</span>
+          </div>
         </div>
+        <button className="btn primary" onClick={() => openQuickAdd()}><Icon name="plus" size={16} /> Add task</button>
+      </header>
+
+      <section className="card overview" aria-label="Overview">
         <div className="gauges">
-          <Gauge label="Today" value={tTotal ? Math.round((tDone / tTotal) * 100) : 0} sub={tTotal ? `${tDone} of ${tTotal} done` : 'nothing due'} onClick={() => go('history')} />
-          <Gauge label="Week's goals" value={goalAvg} sub={weekGoals.length ? `${weekGoals.length} goal${weekGoals.length === 1 ? '' : 's'}` : 'none set'} onClick={() => go('goals')} />
-          <Gauge label="Repeating" value={todaysRoutines.length ? Math.round((doneRoutines / todaysRoutines.length) * 100) : 0} sub={todaysRoutines.length ? `${doneRoutines} of ${todaysRoutines.length}` : 'none today'} onClick={() => go('routines')} />
+          <Gauge label="Today" value={tTotal ? Math.round((tDone / tTotal) * 100) : 0} sub={tTotal ? `${tDone} of ${tTotal} done` : 'Nothing due'} onClick={() => go('history')} />
+          <Gauge label="Weekly goals" value={goalAvg} sub={weekGoals.length ? `${weekGoals.length} goal${weekGoals.length === 1 ? '' : 's'}` : 'None set'} onClick={() => go('goals')} />
+          <Gauge label="Repeating" value={todaysRoutines.length ? Math.round((doneRoutines / todaysRoutines.length) * 100) : 0} sub={todaysRoutines.length ? `${doneRoutines} of ${todaysRoutines.length}` : 'None today'} onClick={() => go('routines')} />
+        </div>
+        <div className="stats">
+          <button className={'stat' + (overdue.length ? ' warn' : '')} onClick={() => go('tasks')}><b>{overdue.length}</b><span>Overdue</span></button>
+          <button className="stat" onClick={() => go('tasks')}><b>{dueToday.length}</b><span>Due today</span></button>
+          <button className="stat" onClick={() => go('matrix')}><b>{firstCount}</b><span>First priority</span></button>
+          <button className="stat" onClick={() => go('routines')}><b>{bestStreak || '–'}</b><span>Best streak (days)</span></button>
         </div>
       </section>
 
-      <div className="kpis">
-        <button className={'kpi' + (overdue.length ? ' warn' : '')} onClick={() => go('tasks')}><b>{overdue.length}</b><span>Overdue</span></button>
-        <button className="kpi" onClick={() => go('tasks')}><b>{dueToday.length}</b><span>Due today</span></button>
-        <button className="kpi" onClick={() => go('matrix')}><b style={{ color: '#e11d48' }}>{firstCount}</b><span>Top priority</span></button>
-        <button className="kpi" onClick={() => go('routines')}><b>{bestStreak ? `🔥${bestStreak}` : '–'}</b><span>Best streak (days)</span></button>
-      </div>
-
-      <ScopeTrace data={trace} onClick={() => go('history')} />
+      <ActivityChart data={activity} onClick={() => go('history')} />
 
       <div className="today-grid">
         <div className="stack">
           <div className="card focus-card">
             <div className="card-h">Do next<span className="grow" /><button className="btn ghost sm" onClick={() => openQuickAdd()}><Icon name="plus" size={14} /> Add</button></div>
             <div className="card-b">
-              {focus.length ? focus.map((t) => <TaskRow key={t.id} t={t} projects={pmap} onOpen={open} />) : <div className="empty">Nothing waiting. Tap <b>+</b> to add something.</div>}
+              {focus.length ? focus.map((t) => <TaskRow key={t.id} t={t} projects={pmap} onOpen={open} />) : <div className="empty">Nothing waiting. Add a task to get started.</div>}
             </div>
           </div>
+
           {steps.length > 0 && (
-            <div className="card steps-due">
-              <div className="card-h">Project & goal steps due<span className="grow" /><button className="btn ghost sm" onClick={() => go('projects')}>Projects</button></div>
-              <div className="card-b">
-                {steps.map((d) => {
-                  const p = pmap.get(d.projectId)!;
-                  const late = d.due < t0;
-                  return (
-                    <div key={d.taskId + (d.subId ?? '')} className="trow" onClick={() => go(d.kind === 'goal' ? 'goals' : 'projects')}>
-                      <Check on={false} round onClick={() => toggleStep(p, d.taskId, d.subId)} label={`Mark ${d.name} done`} />
-                      <div className="t-main">
-                        <div className="t-title">{d.name}</div>
-                        <div className="t-meta">
-                          <span className={'chip ' + (late ? 'over' : d.due === t0 ? 'soon' : '')}>{late ? `${-daysBetween(t0, d.due)}d overdue` : niceDate(d.due)}</span>
-                          <span className="chip">{d.kind === 'goal' ? '🎯 ' : ''}{d.projectName}{d.parent && d.parent !== d.projectName ? ` · ${d.parent}` : ''}</span>
-                        </div>
+            <Section id="steps" title="Project & goal steps due" count={steps.length} action={<button className="btn ghost sm" onClick={() => go('projects')}>Projects</button>}>
+              {steps.map((d) => {
+                const p = pmap.get(d.projectId)!;
+                const late = d.due < t0;
+                return (
+                  <div key={d.taskId + (d.subId ?? '')} className="trow" onClick={() => go(d.kind === 'goal' ? 'goals' : 'projects')}>
+                    <Check on={false} round onClick={() => toggleStep(p, d.taskId, d.subId)} label={`Mark ${d.name} done`} />
+                    <div className="t-main">
+                      <div className="t-title">{d.name}</div>
+                      <div className="t-meta">
+                        <span className={'chip ' + (late ? 'over' : d.due === t0 ? 'soon' : '')}>{late ? `${-daysBetween(t0, d.due)}d overdue` : niceDate(d.due)}</span>
+                        <span className="chip">{d.projectName}{d.parent && d.parent !== d.projectName ? ` · ${d.parent}` : ''}</span>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+                  </div>
+                );
+              })}
+            </Section>
           )}
-          <div className="card">
-            <div className="card-h">Coming up this week</div>
-            <div className="card-b">{upcoming.length ? upcoming.map((t) => <TaskRow key={t.id} t={t} projects={pmap} onOpen={open} />) : <div className="empty">Nothing else this week.</div>}</div>
-          </div>
+
+          <Section id="upcoming" title="Coming up this week" count={upcoming.length}>
+            {upcoming.length ? upcoming.map((t) => <TaskRow key={t.id} t={t} projects={pmap} onOpen={open} />) : <div className="empty">Nothing else this week.</div>}
+          </Section>
         </div>
 
         <div className="stack">
-          <div className="card">
-            <div className="card-h">Repeating today · {doneRoutines}/{todaysRoutines.length}<span className="grow" /><button className="btn ghost sm" onClick={() => openQuickAdd({ repeat: true })}><Icon name="plus" size={14} /> Add</button></div>
-            <div className="card-b">
-              {todaysRoutines.length ? todaysRoutines.map((r) => (
-                <div key={r.id} className="trow" style={{ cursor: 'default' }}>
-                  <Check on={!!r.log[t0]} onClick={() => toggleRoutineDay(r, t0)} label={`Mark ${r.title} done today`} />
-                  <div className="t-main">
-                    <div className="t-title" style={r.log[t0] ? { textDecoration: 'line-through', color: 'var(--ink-3)' } : undefined}>{r.title}</div>
+          <Section id="repeating" title="Repeating today" count={`${doneRoutines}/${todaysRoutines.length}`} action={<button className="btn ghost sm" onClick={() => openQuickAdd({ repeat: true })}><Icon name="plus" size={14} /> Add</button>}>
+            {todaysRoutines.length ? todaysRoutines.map((r) => (
+              <div key={r.id} className={'trow' + (r.log[t0] ? ' done' : '')} style={{ cursor: 'default' }}>
+                <Check on={!!r.log[t0]} onClick={() => toggleRoutineDay(r, t0)} label={`Mark ${r.title} done today`} />
+                <div className="t-main">
+                  <div className="t-title">{r.title}</div>
+                  {(r.time || streak(r) > 1) && (
                     <div className="t-meta">
                       {r.time && <span className="chip">{niceTime(r.time)}</span>}
-                      {streak(r) > 1 && <span className="chip ok">🔥 {streak(r)} days</span>}
+                      {streak(r) > 1 && <span className="chip ok">{streak(r)}-day streak</span>}
                     </div>
-                  </div>
+                  )}
                 </div>
-              )) : <div className="empty">No repeating tasks today. Add things like "water the plants" on the days you choose.</div>}
-            </div>
-          </div>
+              </div>
+            )) : <div className="empty">No repeating tasks today.</div>}
+          </Section>
 
-          <div className="card">
-            <div className="card-h">This week's goals<span className="grow" /><button className="btn ghost sm" onClick={() => go('goals')}>Open</button></div>
-            <div className="card-b">
-              {weekGoals.length ? weekGoals.map((g) => {
-                const pr = goalProgress(g, pmap);
-                return (
-                  <div key={g.id} className="trow" onClick={() => go('goals')} style={{ flexDirection: 'column', gap: 6, alignItems: 'stretch' }}>
-                    <div className="row"><span className="t-title" style={{ flex: 1, textDecoration: g.status === 'done' ? 'line-through' : undefined }}>{g.priority === 'high' ? '⭐ ' : ''}{g.title}</span><b className="small" style={{ color: 'var(--accent)' }}>{pr}%</b></div>
-                    <Progress value={pr} />
-                  </div>
-                );
-              }) : <div className="empty">No goals this week. <button className="btn sm" onClick={() => go('goals')}>Set a goal</button></div>}
-            </div>
-          </div>
+          <Section id="goals" title="This week's goals" count={weekGoals.length} action={<button className="btn ghost sm" onClick={() => go('goals')}>Open</button>}>
+            {weekGoals.length ? weekGoals.map((g) => {
+              const pr = goalProgress(g, pmap);
+              return (
+                <div key={g.id} className={'trow' + (g.status === 'done' ? ' done' : '')} onClick={() => go('goals')} style={{ flexDirection: 'column', gap: 6, alignItems: 'stretch' }}>
+                  <div className="row"><span className="t-title" style={{ flex: 1 }}>{g.title}</span>{g.priority === 'high' && <span className="chip soon">Top</span>}<b className="small tnum" style={{ color: 'var(--navy)' }}>{pr}%</b></div>
+                  <Progress value={pr} />
+                </div>
+              );
+            }) : <div className="empty">No goals this week. <button className="linkish" onClick={() => go('goals')}>Set a goal</button></div>}
+          </Section>
 
           {todaysEvents.length > 0 && (
-            <div className="card">
-              <div className="card-h">Calendar<span className="grow" /><button className="btn ghost sm" onClick={() => go('calendar')}>Open</button></div>
-              <div className="card-b">
-                {todaysEvents.map((e) => (
-                  <div key={e.id} className="ev"><span className="tm">{e.allDay ? 'All day' : niceTime(timeOfISO(e.start))}</span><span className="bar" /><span>{e.summary}</span></div>
-                ))}
-              </div>
-            </div>
+            <Section id="calendar" title="Calendar" count={todaysEvents.length} action={<button className="btn ghost sm" onClick={() => go('calendar')}>Open</button>}>
+              {todaysEvents.map((e) => (
+                <div key={e.id} className="ev"><span className="tm">{e.allDay ? 'All day' : niceTime(timeOfISO(e.start))}</span><span className="bar" /><span>{e.summary}</span></div>
+              ))}
+            </Section>
           )}
 
-          <div className="card">
-            <div className="card-h">Done today · {finishedToday.length}<span className="grow" /><button className="btn ghost sm" onClick={() => go('history')}>History</button></div>
-            <div className="card-b">
-              {finishedToday.length ? finishedToday.map((x) => (
-                <div key={x.key} className="trow done-row" style={{ alignItems: 'center', cursor: 'default' }}>
-                  <span className={'done-ico k-' + x.kind} aria-hidden="true">{KIND_ICON[x.kind]}</span>
-                  <div className="t-main"><div className="t-title">{x.title}</div>{x.context && <div className="small muted">{x.context}</div>}</div>
-                  <button className="btn sm" onClick={() => x.reopen()}>Reopen</button>
-                </div>
-              )) : <div className="empty">Things you finish today stay listed here.</div>}
-            </div>
-          </div>
+          <Section id="done" title="Done today" count={finishedToday.length} defaultOpen={false} action={<button className="btn ghost sm" onClick={() => go('history')}>History</button>}>
+            {finishedToday.length ? finishedToday.map((x) => (
+              <div key={x.key} className="trow done-row" style={{ alignItems: 'center', cursor: 'default' }}>
+                <span className={'done-ico k-' + x.kind} aria-hidden="true">{KIND_ICON[x.kind]}</span>
+                <div className="t-main"><div className="t-title">{x.title}</div>{x.context && <div className="small muted">{x.context}</div>}</div>
+                <button className="btn sm" onClick={() => x.reopen()}>Reopen</button>
+              </div>
+            )) : <div className="empty">Things you finish today stay listed here.</div>}
+          </Section>
         </div>
       </div>
       <button className="fab" aria-label="Add" onClick={() => openQuickAdd()}>+</button>
+    </div>
+  );
+}
+
+/** Card with a header that folds the body away; remembers its state per section. */
+function Section({ id, title, count, action, defaultOpen = true, children }: { id: string; title: string; count?: number | string; action?: ReactNode; defaultOpen?: boolean; children: ReactNode }) {
+  const key = 'orbit.today.' + id;
+  const [open, setOpen] = useState(() => { try { const v = localStorage.getItem(key); return v === null ? defaultOpen : v === '1'; } catch { return defaultOpen; } });
+  const toggle = () => { const n = !open; setOpen(n); try { localStorage.setItem(key, n ? '1' : '0'); } catch { /* ignore */ } };
+  return (
+    <div className="card">
+      <div className="card-h">
+        <button className="collapse-h row" style={{ flex: 1, gap: 8, padding: 0, color: 'inherit' }} onClick={toggle} aria-expanded={open}>
+          <span className="chev" style={{ transform: open ? 'rotate(90deg)' : 'none' }}><ChevronRight size={16} /></span>
+          <span>{title}</span>
+          {count !== undefined && <span className="count-pill">{count}</span>}
+        </button>
+        {action}
+      </div>
+      {open && <div className="card-b">{children}</div>}
     </div>
   );
 }
@@ -188,73 +200,40 @@ function useClock() {
   return now;
 }
 
-/** Analog-meter style gauge: 270° arc with tick marks. */
+/** Minimal ring gauge: beige track, navy value, orange when complete. */
 function Gauge({ label, value, sub, onClick }: { label: string; value: number; sub: string; onClick: () => void }) {
-  const r = 38, c = 50;
-  const arc = (from: number, to: number) => {
-    const p = (a: number) => [c + r * Math.cos((a * Math.PI) / 180), c + r * Math.sin((a * Math.PI) / 180)];
-    const [x1, y1] = p(from), [x2, y2] = p(to);
-    return `M ${x1} ${y1} A ${r} ${r} 0 ${to - from > 180 ? 1 : 0} 1 ${x2} ${y2}`;
-  };
   const v = Math.max(0, Math.min(100, value));
-  const end = 135 + (270 * v) / 100;
-  const ticks = Array.from({ length: 11 }, (_, i) => 135 + i * 27);
+  const r = 24, c = 2 * Math.PI * r;
   return (
     <button className="gauge" onClick={onClick} aria-label={`${label}: ${v}%, ${sub}`}>
-      <svg viewBox="0 0 100 100" aria-hidden="true">
-        {ticks.map((a, i) => {
-          const rad = (a * Math.PI) / 180;
-          return <line key={i} x1={c + 44 * Math.cos(rad)} y1={c + 44 * Math.sin(rad)} x2={c + (i % 5 === 0 ? 48 : 46.5) * Math.cos(rad)} y2={c + (i % 5 === 0 ? 48 : 46.5) * Math.sin(rad)} className="g-tick" />;
-        })}
-        <path d={arc(135, 405)} className="g-track" />
-        {v > 0 && <path d={arc(135, Math.max(end, 136))} className="g-val" />}
-        <text x="50" y="52" className="g-num">{v}<tspan className="g-pct">%</tspan></text>
+      <svg viewBox="0 0 60 60" aria-hidden="true">
+        <circle cx="30" cy="30" r={r} className="g-track" />
+        <circle cx="30" cy="30" r={r} className={'g-val' + (v >= 100 ? ' full' : '')} strokeDasharray={c} strokeDashoffset={c * (1 - v / 100)} transform="rotate(-90 30 30)" style={{ opacity: v ? 1 : 0 }} />
+        <text x="30" y="30" className="g-num">{v}%</text>
       </svg>
-      <span className="g-label">{label}</span>
-      <span className="g-sub">{sub}</span>
+      <span className="g-text"><span className="g-label">{label}</span><span className="g-sub">{sub}</span></span>
     </button>
   );
 }
 
-/** Oscilloscope-style trace of items finished per day, last 14 days. */
-function ScopeTrace({ data, onClick }: { data: { d: string; n: number }[]; onClick: () => void }) {
-  const W = 600, H = 90, pad = 8;
+/** Items finished per day, last 14 days: navy bars, today in orange, quiet days in beige. */
+function ActivityChart({ data, onClick }: { data: { d: string; n: number }[]; onClick: () => void }) {
+  const W = 700, H = 74, pad = 2, gap = 8;
   const max = Math.max(3, ...data.map((x) => x.n));
-  const pts = data.map((x, i) => [pad + (i * (W - 2 * pad)) / (data.length - 1), H - pad - (x.n / max) * (H - 2 * pad)]);
-  const path = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const bw = (W - pad * 2 - gap * (data.length - 1)) / data.length;
   const total = data.reduce((a, x) => a + x.n, 0);
+  const t0 = today();
   return (
-    <button className="scope" onClick={onClick} aria-label={`Finished in the last 14 days: ${total}`}>
-      <div className="scope-h"><span><span className="led ok" /> Finished · last 14 days</span><b>{total}</b></div>
+    <button className="card activity" onClick={onClick} aria-label={`Finished in the last 14 days: ${total}`}>
+      <div className="activity-h"><h3>Activity</h3><span>items finished · last 14 days</span><b className="tnum">{total}</b></div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
-        <path d={`${path} L${W - pad},${H - pad} L${pad},${H - pad} Z`} className="scope-fill" />
-        <path d={path} className="scope-line" />
-        {pts.map(([x, y], i) => data[i].n > 0 && <circle key={i} cx={x} cy={y} r={3} className="scope-pt" />)}
+        {[0.25, 0.5, 0.75].map((f) => <line key={f} x1="0" x2={W} y1={H * f} y2={H * f} className="a-grid" />)}
+        {data.map((x, i) => {
+          const h = x.n ? Math.max(4, ((H - 4) * x.n) / max) : 3;
+          return <rect key={x.d} x={pad + i * (bw + gap)} y={H - h} width={bw} height={h} rx="2" className={'a-bar' + (x.d === t0 ? ' today' : x.n ? '' : ' zero')}><title>{`${niceDate(x.d)}: ${x.n}`}</title></rect>;
+        })}
       </svg>
-      <div className="scope-x"><span>{niceDate(data[0].d)}</span><span>Today</span></div>
+      <div className="activity-x"><span>{parseDate(data[0].d).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span><span>Today</span></div>
     </button>
-  );
-}
-
-/** Decorative PCB traces with vias behind the header. */
-function CircuitBackdrop() {
-  return (
-    <svg className="pcb" viewBox="0 0 400 200" preserveAspectRatio="xMaxYMid slice" aria-hidden="true">
-      <g className="trace">
-        <path d="M400 30 H300 L280 50 H210 L195 65 V110" />
-        <path d="M400 70 H330 L315 85 V140 L300 155 H240" />
-        <path d="M400 120 H360 L345 135 V185" />
-        <path d="M400 165 H380 L370 175 H300 L285 190 H180" />
-        <path d="M260 0 V20 L250 30 H220" />
-        <path d="M150 200 V170 L165 155 H230" />
-      </g>
-      <g className="via">
-        <circle cx="195" cy="110" r="4" /><circle cx="240" cy="155" r="4" /><circle cx="345" cy="185" r="4" />
-        <circle cx="180" cy="190" r="4" /><circle cx="220" cy="30" r="4" /><circle cx="230" cy="155" r="4" />
-      </g>
-      <rect className="chip-ic" x="300" y="95" width="46" height="30" rx="3" />
-      {[0, 1, 2, 3].map((i) => <line key={i} className="pin" x1={306 + i * 11} y1="91" x2={306 + i * 11} y2="95" />)}
-      {[0, 1, 2, 3].map((i) => <line key={'b' + i} className="pin" x1={306 + i * 11} y1="125" x2={306 + i * 11} y2="129" />)}
-    </svg>
   );
 }

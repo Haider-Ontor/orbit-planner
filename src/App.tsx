@@ -25,19 +25,25 @@ import type { View } from './lib/viewTypes';
 
 const NAV_ALL: { id: View; label: string; icon: string }[] = [
   { id: 'today', label: 'Today', icon: 'today' },
-  { id: 'goals', label: 'Weekly goals', icon: 'flag' },
-  { id: 'projects', label: 'Projects', icon: 'projects' },
+  { id: 'goals', label: 'Weekly Goals', icon: 'goals' },
   { id: 'matrix', label: 'Priorities', icon: 'matrix' },
-  { id: 'routines', label: 'Repeating tasks', icon: 'routine' },
-  { id: 'tasks', label: 'All tasks', icon: 'tasks' },
-  { id: 'notes', label: 'Notes & voice', icon: 'notes' },
+  { id: 'tasks', label: 'All Tasks', icon: 'tasks' },
+  { id: 'routines', label: 'Repeating Tasks', icon: 'routine' },
+  { id: 'projects', label: 'Projects', icon: 'projects' },
   { id: 'calendar', label: 'Calendar', icon: 'calendar' },
-  { id: 'history', label: 'Done & history', icon: 'check' },
-  { id: 'capture', label: 'Paste & extract (AI)', icon: 'capture' },
+  { id: 'notes', label: 'Notes & Voice', icon: 'notes' },
+  { id: 'history', label: 'Done & History', icon: 'history' },
+  { id: 'capture', label: 'Paste & Extract (AI)', icon: 'capture' },
+];
+/** Kept apart at the bottom of the sidebar; the first two open Settings at that section. */
+const NAV_BOTTOM: { id: View; label: string; icon: string; section?: string }[] = [
+  { id: 'settings', label: 'Sync & Backup', icon: 'cloud', section: 'sec-drive' },
+  { id: 'settings', label: 'Updates', icon: 'update', section: 'sec-updates' },
+  { id: 'settings', label: 'Settings', icon: 'settings' },
 ];
 const TABS: { id: View; label: string; icon: string }[] = [
   { id: 'today', label: 'Today', icon: 'today' },
-  { id: 'goals', label: 'Goals', icon: 'flag' },
+  { id: 'goals', label: 'Goals', icon: 'goals' },
   { id: 'projects', label: 'Projects', icon: 'projects' },
   { id: 'matrix', label: 'Priorities', icon: 'matrix' },
   { id: 'notes', label: 'Notes', icon: 'notes' },
@@ -48,6 +54,7 @@ export default function App() {
   const [editing, setEditing] = useState<{ t: Task; isNew: boolean } | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [focus, setFocus] = useState<{ section: string; at: number } | null>(null);
   const tasks = useTasks();
   const projects = useProjects();
   const settings = useSettings();
@@ -64,7 +71,11 @@ export default function App() {
     else document.documentElement.setAttribute('data-theme', settings.theme);
   }, [settings.theme]);
 
-  const go = useCallback((v: View) => { setView(v); setMoreOpen(false); if (v !== 'projects') setProjectId(null); document.querySelector('.main')?.scrollTo(0, 0); }, []);
+  const go = useCallback((v: View, section?: string) => {
+    setView(v); setMoreOpen(false); if (v !== 'projects') setProjectId(null);
+    setFocus(section ? { section, at: Date.now() } : null);
+    if (!section) document.querySelector('.main')?.scrollTo(0, 0);
+  }, []);
   const open = useCallback((t: Task) => setEditing({ t, isNew: !tasks.some((x) => x.id === t.id) }), [tasks]);
 
   // Keyboard: N = new task, / = capture
@@ -93,8 +104,12 @@ export default function App() {
           </button>
         ))}
         <div className="spacer" />
-        <button className={view === 'settings' ? 'on' : ''} onClick={() => go('settings')}><Icon name="settings" />Settings</button>
-        <button className="sync" onClick={() => go('settings')} title="Google Drive sync">
+        <div className="nav-bottom">
+          {NAV_BOTTOM.map((n) => (
+            <button key={n.label} className={view === 'settings' && (focus?.section ?? '') === (n.section ?? '') ? 'on' : ''} onClick={() => go(n.id, n.section)}><Icon name={n.icon} />{n.label}</button>
+          ))}
+        </div>
+        <button className="sync" onClick={() => go('settings', 'sec-drive')} title="Google Drive sync">
           <span className={'dot ' + dot} />{sync.status === 'off' ? 'On this device only' : sync.status === 'syncing' ? 'Syncing…' : sync.status === 'error' ? 'Sync problem' : 'Synced with Drive'}
         </button>
       </nav>
@@ -110,7 +125,7 @@ export default function App() {
         {view === 'notes' && <Notes />}
         {view === 'calendar' && <Calendar open={open} go={go} />}
         {view === 'capture' && <Capture go={go} />}
-        {view === 'settings' && <Settings />}
+        {view === 'settings' && <Settings focus={focus} />}
       </main>
 
       <nav className="tabbar" aria-label="Main">
@@ -124,8 +139,14 @@ export default function App() {
       {moreOpen && (
         <div className="backdrop" onClick={() => setMoreOpen(false)} style={{ placeItems: 'start end' }}>
           <div className="card" style={{ padding: 8, minWidth: 220, marginTop: 40 }} onClick={(e) => e.stopPropagation()}>
-            {[...NAV, { id: 'settings' as View, label: 'Settings', icon: 'settings' }].map((n) => (
+            {NAV.map((n) => (
               <button key={n.id} className="trow" style={{ width: '100%', border: 0, background: view === n.id ? 'var(--accent-soft)' : 'none', alignItems: 'center' }} onClick={() => go(n.id)}>
+                <Icon name={n.icon} /> {n.label}
+              </button>
+            ))}
+            <div style={{ borderTop: '1px solid var(--line)', margin: '6px 0' }} />
+            {NAV_BOTTOM.map((n) => (
+              <button key={n.label} className="trow" style={{ width: '100%', border: 0, background: 'none', alignItems: 'center' }} onClick={() => go(n.id, n.section)}>
                 <Icon name={n.icon} /> {n.label}
               </button>
             ))}

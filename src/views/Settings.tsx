@@ -59,9 +59,9 @@ function DriveSection() {
   const ago = (ms: number) => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : `${Math.round(m / 60)} h ago`; };
 
   return (
-    <div className="card" style={{ marginBottom: 16 }}>
+    <div className="card" id="sec-drive" style={{ marginBottom: 16, scrollMarginTop: 16 }}>
       <div className="settings-sec">
-        <h3>☁ Google Drive: sync & backup</h3>
+        <h3>Google Drive: sync & backup</h3>
         <p>Keeps your phone and computer in sync and backs everything up to a folder called <b>Orbit</b> in your own Google Drive. Orbit can only see the files it creates there.</p>
         {connected ? (<>
           <div className="row wrap">
@@ -147,10 +147,10 @@ function UpdateSection() {
   };
 
   return (
-    <div className="card" style={{ marginBottom: 16 }}>
+    <div className="card" id="sec-updates" style={{ marginBottom: 16, scrollMarginTop: 16 }}>
       <div className="settings-sec">
         <div className="row wrap">
-          <h3 style={{ flex: 1 }}>⬆ Updates</h3>
+          <h3 style={{ flex: 1 }}>Updates</h3>
           <span className="chip">Orbit {APP_VERSION}</span>
         </div>
         {info?.newer ? (
@@ -178,7 +178,14 @@ function UpdateSection() {
   );
 }
 
-export function Settings() {
+export function Settings({ focus }: { focus?: { section: string; at: number } | null } = {}) {
+  useEffect(() => {
+    if (!focus) return;
+    const el = document.getElementById(focus.section);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el.classList.remove('anchor-flash'); void el.offsetWidth; el.classList.add('anchor-flash');
+  }, [focus]);
   const s = useSettings();
   const sync = useSync();
   const [email, setEmail] = useState('');
@@ -216,7 +223,7 @@ export function Settings() {
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="settings-sec">
           <div className="row wrap">
-            <h3 style={{ flex: 1 }}>✨ AI helper (optional)</h3>
+            <h3 style={{ flex: 1 }}>AI helper (optional)</h3>
             <label className="switch"><input type="checkbox" checked={s.aiEnabled} onChange={(e) => setSettings({ aiEnabled: e.target.checked })} /><span>{s.aiEnabled ? 'On' : 'Off'}</span></label>
           </div>
           <p>Connect an AI service to turn on <b>Paste & extract</b> (turn an email or message into tasks), <b>Organise note</b> and <b>Suggest steps</b> for goals. These buttons stay hidden until a service is connected. Everything else works without AI.</p>
@@ -261,7 +268,7 @@ export function Settings() {
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="settings-sec">
-          <h3>📅 Google Calendar</h3>
+          <h3>Google Calendar</h3>
           <p>Timed tasks are added to your Google Calendar and your events show up in Today and Agenda. Connect from the Windows app; the phone gets events through cloud sync.</p>
           {gcalAvailable() ? (<>
             <div className="grid2">
@@ -282,7 +289,7 @@ export function Settings() {
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="settings-sec">
-          <h3>🎙 Voice notes</h3>
+          <h3>Voice notes</h3>
           <p>{isDesktop() || platformName() === 'Web' ? 'On Windows, speech is transcribed on your computer with Whisper. The model downloads once (base ≈ 80 MB, small ≈ 250 MB).' : 'On Android, the phone’s built-in speech recognition is used.'}</p>
           <div className="grid2">
             <label className="field">Language
@@ -305,7 +312,7 @@ export function Settings() {
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="settings-sec">
-          <h3>🔔 Reminders</h3>
+          <h3>Reminders</h3>
           <label className="row"><input type="checkbox" checked={s.remindersOn} onChange={(e) => setSettings({ remindersOn: e.target.checked })} /> Notify me before timed tasks and routines</label>
           <div className="grid2">
             <label className="field">Remind me (minutes before)<input className="input" type="number" min={0} step={5} value={s.remindMinutesBefore} onChange={(e) => setSettings({ remindMinutesBefore: Math.max(0, +e.target.value || 0) })} /></label>
@@ -317,9 +324,9 @@ export function Settings() {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card" id="sec-backups" style={{ marginBottom: 16, scrollMarginTop: 16 }}>
         <div className="settings-sec">
-          <h3>💾 Your data & backups</h3>
+          <h3>Your data & backups</h3>
           <p>Everything is saved on this device the moment you change it. Finished items are never removed: they move to <b>Done & history</b>, and deleted items stay restorable for 30 days. Orbit also keeps a copy of all your data once a day{isDesktop() ? ', both inside the app and as a file in Documents › Orbit Backups' : ''}. Connect Google Drive to also keep a copy online and use Orbit on your phone and computer together.</p>
           <Snapshots onRestored={() => syncNow()} />
           <div className="row wrap">

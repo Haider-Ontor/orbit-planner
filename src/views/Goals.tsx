@@ -116,7 +116,7 @@ export function Goals() {
           <div className="card-b">
             {upcoming.map((g) => (
               <div key={g.id} className="trow" onClick={() => setWeek(g.firstWeek)} style={{ alignItems: 'center' }}>
-                <span className="done-ico" style={{ background: 'var(--panel-2)', color: 'var(--ink-2)' }}>{g.priority === 'high' ? '⭐' : '○'}</span>
+                <span className="done-ico" style={{ background: 'var(--panel-2)', color: 'var(--ink-2)' }}>{g.priority === 'high' ? '★' : '○'}</span>
                 <div className="t-main"><div className="t-title">{g.title}</div><div className="small muted">Starts {weekName(g.firstWeek).toLowerCase()}</div></div>
               </div>
             ))}
@@ -130,7 +130,7 @@ export function Goals() {
           <div className="card-b">
             {recentShown.map((g) => (
               <div key={g.id} className="trow done-row" style={{ alignItems: 'center', cursor: 'default' }}>
-                <span className="done-ico k-goal">🎯</span>
+                <span className="done-ico k-goal">★</span>
                 <div className="t-main"><div className="t-title">{g.title}</div><div className="small muted">Achieved {new Date(g.doneAt!).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}{goalWeeks(g) > 1 ? ` · took ${goalWeeks(g)} weeks` : ''}</div></div>
                 <button className="btn sm" onClick={() => saveWithUndo('goals', g, { ...g, status: 'active', doneAt: null }, `Goal reopened: ${g.title}`)}>Reopen</button>
               </div>
@@ -194,7 +194,7 @@ function GoalCard({ g, project, progress, onEdit }: { g: Goal; project?: Project
         <div className="t-main" onClick={() => setOpen(!open)} style={{ cursor: 'pointer' }}>
           <div className="goal-title">{g.title}</div>
           <div className="t-meta">
-            {g.priority === 'high' && <span className="chip soon">⭐ Top priority</span>}
+            {g.priority === 'high' && <span className="chip soon">Top priority</span>}
             {fw && <span className="chip">{fw}</span>}
             {goalWeeks(g) > 1 && <span className="chip">{shortWeek(g.firstWeek)} → {shortWeek(g.weekStart)} · {goalWeeks(g)} wks</span>}
             {weeksCarried(g) > 0 && !done && <span className="chip">pushed {weeksCarried(g)}×</span>}
