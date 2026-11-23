@@ -29,7 +29,7 @@ Closing the window keeps Orbit in the system tray (bottom-right, next to the clo
 6. To update later: **Settings → Updates → Check for updates → Update**, then tap **Install**. The first time, Android asks you to allow Orbit to install apps: turn it on and tap Update again. (Or install the new **Orbit.apk** over the old one.) Your data is kept.
 
 ### First run
-Everything works offline straight away. To link the phone and the PC, turn on cloud sync on both (see [Setup inside the app](#setup-inside-the-app-settings)). To use smart capture and AI goal planning, add a Claude API key.
+Everything works offline straight away. To keep the phone and the PC in sync (and backed up), connect **Google Drive** on both (see [Google Drive: sync and backup](#2-google-drive-sync-and-backup-phone--computer)). AI features are optional (Settings → AI helper).
 
 ---
 
@@ -64,14 +64,24 @@ Orbit works fully without AI. To turn on *Paste & extract*, *Organise note* and 
 
 Press **Test connection**. Keys stay on that device. There is no keyless public AI service that is reliable enough to build on, so a (free) key is needed.
 
-### 2. Cloud sync (desktop ↔ phone)
-1. Create a free project at supabase.com.
-2. SQL Editor → paste and run `supabase/schema.sql`.
-3. Project Settings → API: copy the **Project URL** and the **anon public** key.
-4. In Orbit on **both** devices: Settings → Cloud sync → paste both → Connect → create an account on one device and sign in with the same email/password on the other.
-   (If email confirmation is on in Supabase → Authentication → Providers → Email, confirm the email once, or switch "Confirm email" off for a personal project.)
+### 2. Google Drive: sync and backup (phone ↔ computer)
+Orbit keeps everything in a folder called **Orbit** in your own Google Drive:
+`orbit-data.json` (the shared copy every device merges with) and one `orbit-backup-YYYY-MM-DD.json` per day (last 14 kept).
+Orbit can only see the files it creates there (Google's `drive.file` permission), not the rest of your Drive.
 
-Sync is offline-first: everything works without internet and pushes when back online. Conflicts resolve last-write-wins per record. Voice-note audio stays on the device that recorded it; the transcript syncs.
+**How sync works:** each sync downloads the shared copy, keeps the newer version of every item on both sides, and uploads the result if this device had something newer. It runs on start, 15 seconds after an edit, every 5 minutes, and when you switch back to the app. Two devices editing at the same time don't lose each other's changes. Deleted items are remembered for 90 days so deletions reach every device.
+
+**One-time setup (about 5 minutes, done once by whoever builds the app):**
+1. Open [console.cloud.google.com](https://console.cloud.google.com/projectcreate) and create a project called **Orbit**.
+2. **APIs & Services → Library:** enable **Google Drive API** (and **Google Calendar API** if you want calendar sync).
+3. **OAuth consent screen:** choose **External**, fill in the app name and your email, and add every Google account that will use Orbit under **Test users**. (Drive access with `drive.file` is a non-sensitive permission, so you can also press **Publish app** without Google's review.)
+4. **Credentials → Create credentials → OAuth client ID → Desktop app.** Paste the client ID and secret into Orbit on Windows: **Settings → Google Drive → One-time Google setup**.
+   To build them into the installer so nobody has to paste anything, set `VITE_GOOGLE_CLIENT_ID` and `VITE_GOOGLE_CLIENT_SECRET` before `npm run dist:all` (a desktop client's "secret" is not secret for installed apps; Google expects it to ship in the app).
+5. **For the phone:** **Create credentials → OAuth client ID → Android**, package name `com.orbit.planner`, SHA-1 `D7:AB:96:D3:23:A1:F0:7A:2F:7D:89:AD:07:41:8F:A7:7F:8E:6E:27` (the certificate the released APKs are signed with). Nothing is typed on the phone.
+
+**Then on each device:** Settings → Google Drive → **Connect Google Drive**, using the **same Google account** everywhere. Windows opens your browser to sign in; Android shows the normal Google account picker.
+
+**Restore:** Settings → Google Drive → **Restore from Drive…** lists the daily backups.
 
 ### 3. Google Calendar (from the Windows app)
 1. console.cloud.google.com → new project → **APIs & Services → Library** → enable **Google Calendar API**.
@@ -130,7 +140,9 @@ The APK is signed with this PC's Android debug key (`%USERPROFILE%\.android\debu
 ```
 electron/main.cjs        desktop shell: orbit:// protocol, tray, mic permission, Google OAuth (loopback + PKCE)
 src/lib/db.ts            local database (IndexedDB / Dexie); every record is offline-first
-src/lib/sync.ts          Supabase push/pull + realtime
+src/lib/driveSync.ts     Google Drive sync + daily Drive backups (merge in src/lib/merge.ts)
+src/lib/google.ts        Google sign-in for Drive (desktop loopback / Android Play Services)
+src/lib/sync.ts          (legacy) Supabase sync, no longer shown in the app
 src/lib/priority.ts      quadrants, deadline-driven urgency, "do next" score
 src/lib/ai.ts            Claude structured extraction (tasks, deadlines, requirements)
 src/lib/gcal.ts          Google Calendar two-way sync
@@ -139,5 +151,5 @@ src/lib/notify.ts        reminders (OS notifications on Android, tray app on Win
 src/components/Plan.tsx  project / goal plans: tasks → sub-tasks, list + timeline
 src/lib/update.ts        in-app update check and install (GitHub Releases)
 android/app/src/main/java/com/orbit/planner/ApkUpdaterPlugin.java   downloads the APK and opens the Android installer
-supabase/schema.sql      cloud table + row-level security
+supabase/schema.sql      (legacy) Supabase table for the old sync option
 ```

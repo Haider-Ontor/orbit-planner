@@ -11,10 +11,13 @@ export interface Settings {
   compatModel: string;
   supabaseUrl: string;
   supabaseAnonKey: string;
-  googleClientId: string;
+  googleClientId: string;   // one Google Cloud OAuth client (Desktop app) for Drive + Calendar
   googleClientSecret: string;
   googleRefreshToken: string;
   googleEmail: string;
+  driveRefreshToken: string; // Windows: Google Drive sync
+  driveEmail: string;
+  driveAndroid: boolean;     // Android: connected through Play Services
   whisperModel: string;
   voiceLanguage: string; // '' = auto, 'english', 'bengali', ...
   remindersOn: boolean;
@@ -34,10 +37,14 @@ const DEFAULTS: Settings = {
   compatModel: '',
   supabaseUrl: '',
   supabaseAnonKey: '',
-  googleClientId: '',
-  googleClientSecret: '',
+  // Defaults can be baked into a build with VITE_GOOGLE_CLIENT_ID / VITE_GOOGLE_CLIENT_SECRET.
+  googleClientId: (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? '',
+  googleClientSecret: (import.meta.env.VITE_GOOGLE_CLIENT_SECRET as string | undefined) ?? '',
   googleRefreshToken: '',
   googleEmail: '',
+  driveRefreshToken: '',
+  driveEmail: '',
+  driveAndroid: false,
   whisperModel: 'onnx-community/whisper-base',
   voiceLanguage: '',
   remindersOn: true,
@@ -54,7 +61,12 @@ const subs = new Set<() => void>();
 function load(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { ...DEFAULTS, ...JSON.parse(raw) };
+    if (raw) {
+      const saved = { ...DEFAULTS, ...JSON.parse(raw) } as Settings;
+      // an empty saved value should not hide a client ID built into the app
+      if (!saved.googleClientId) { saved.googleClientId = DEFAULTS.googleClientId; saved.googleClientSecret = saved.googleClientSecret || DEFAULTS.googleClientSecret; }
+      return saved;
+    }
   } catch { /* private mode etc. */ }
   return { ...DEFAULTS };
 }

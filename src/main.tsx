@@ -4,6 +4,7 @@ import App from './App';
 import './styles.css';
 import { removeOldSamples } from './lib/models';
 import { ensurePersistentStorage, startAutoBackup } from './lib/backup';
+import { startDriveSync } from './lib/driveSync';
 import { initSync } from './lib/sync';
 import { onLocalChange } from './lib/db';
 import { startDesktopReminders, rescheduleAndroid } from './lib/notify';
@@ -17,6 +18,7 @@ async function boot() {
   initSync().catch((e) => console.warn('sync init failed', e));
   startDesktopReminders();
   startAutoBackup();
+  startDriveSync();
   rescheduleAndroid();
   onLocalChange(() => rescheduleAndroid());
 

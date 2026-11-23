@@ -256,6 +256,8 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; 
 .steps-due .trow { align-items: center; }
 
 .snaps { display: flex; flex-direction: column; gap: 6px; }
+.setup-steps { margin: 8px 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: var(--ink-2); }
+.nav .sync { border: 0; background: none; cursor: pointer; text-align: left; font: inherit; font-size: 12px; }
 .snap-row { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
 
 /* ---------- add sheet, wizard, shared controls ---------- */

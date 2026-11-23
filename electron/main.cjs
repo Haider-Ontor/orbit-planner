@@ -90,9 +90,11 @@ app.on('window-all-closed', () => { /* stay in tray */ });
  *  Google OAuth for installed apps: loopback redirect + PKCE
  * ------------------------------------------------------------------ */
 const b64url = (buf) => buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-const SCOPES = ['https://www.googleapis.com/auth/calendar.events', 'openid', 'email'];
+const CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar.events', 'openid', 'email'];
+const ALLOWED_SCOPES = new Set([...CALENDAR_SCOPES, 'https://www.googleapis.com/auth/drive.file']);
 
-ipcMain.handle('google-auth', async (_e, { clientId, clientSecret }) => {
+ipcMain.handle('google-auth', async (_e, { clientId, clientSecret, scopes }) => {
+  const SCOPES = Array.isArray(scopes) && scopes.length ? scopes.filter((s) => ALLOWED_SCOPES.has(s)) : CALENDAR_SCOPES;
   if (!clientId) throw new Error('Google client ID is not set (Settings → Google Calendar).');
   const verifier = b64url(crypto.randomBytes(48));
   const challenge = b64url(crypto.createHash('sha256').update(verifier).digest());
@@ -196,6 +198,14 @@ ipcMain.handle('backup-open-folder', async () => {
 
 /* AI services that don't allow browser (CORS) calls are reached from here.
  * Only https, or http to this computer (e.g. a local Ollama). */
+ipcMain.handle('http-request', async (_e, method, url, headers, body) => {
+  const u = new URL(url);
+  const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1';
+  if (!(u.protocol === 'https:' || (u.protocol === 'http:' && local))) throw new Error('Only https addresses are allowed');
+  if (!['GET', 'POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) throw new Error('Bad method');
+  const r = await fetch(url, { method, headers, body: body ?? undefined });
+  return { status: r.status, text: await r.text() };
+});
 ipcMain.handle('http-post', async (_e, url, headers, body) => {
   const u = new URL(url);
   const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1';

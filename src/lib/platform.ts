@@ -2,7 +2,7 @@ import { Capacitor } from '@capacitor/core';
 
 export interface DesktopBridge {
   isDesktop: true;
-  googleAuth(cfg: { clientId: string; clientSecret: string }): Promise<GoogleTokens>;
+  googleAuth(cfg: { clientId: string; clientSecret: string; scopes?: string[] }): Promise<GoogleTokens>;
   googleRefresh(cfg: { clientId: string; clientSecret: string; refreshToken: string }): Promise<GoogleTokens>;
   setLaunchAtLogin(on: boolean): Promise<boolean>;
   getLaunchAtLogin(): Promise<boolean>;
@@ -11,6 +11,7 @@ export interface DesktopBridge {
   installUpdate?(url: string): Promise<void>;
   writeBackup?(name: string, json: string): Promise<string>;
   httpPost?(url: string, headers: Record<string, string>, body: string): Promise<{ status: number; text: string }>;
+  httpRequest?(method: string, url: string, headers: Record<string, string>, body: string | null): Promise<{ status: number; text: string }>;
   openBackupFolder?(): Promise<void>;
   onUpdateProgress(cb: (p: { loaded: number; total: number }) => void): () => void;
 }

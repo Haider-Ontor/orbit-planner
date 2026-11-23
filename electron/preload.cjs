@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('orbitDesktop', {
   installUpdate: (url) => ipcRenderer.invoke('update-install', url),
   writeBackup: (name, json) => ipcRenderer.invoke('backup-write', name, json),
   httpPost: (url, headers, body) => ipcRenderer.invoke('http-post', url, headers, body),
+  httpRequest: (method, url, headers, body) => ipcRenderer.invoke('http-request', method, url, headers, body),
   openBackupFolder: () => ipcRenderer.invoke('backup-open-folder'),
   onUpdateProgress: (cb) => {
     const h = (_e, p) => cb(p);

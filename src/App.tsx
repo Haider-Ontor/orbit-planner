@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTasks, useProjects } from './lib/hooks';
 import { useSettings } from './lib/settings';
-import { useSync } from './lib/sync';
+import { useDriveSync } from './lib/driveSync';
 import { daysLeft } from './lib/priority';
 import { Icon } from './components/icons';
 import { Toaster, toast } from './components/ui';
@@ -52,7 +52,7 @@ export default function App() {
   const projects = useProjects();
   const settings = useSettings();
   const NAV = NAV_ALL.filter((n) => n.id !== 'capture' || aiReady());
-  const sync = useSync();
+  const sync = useDriveSync();
 
   useEffect(() => { try { localStorage.setItem('orbit.view', view); } catch { /* ignore */ } }, [view]);
   useEffect(() => {
@@ -94,7 +94,9 @@ export default function App() {
         ))}
         <div className="spacer" />
         <button className={view === 'settings' ? 'on' : ''} onClick={() => go('settings')}><Icon name="settings" />Settings</button>
-        <div className="sync"><span className={'dot ' + dot} />{sync.status === 'off' ? 'Local only' : sync.email ? sync.message : 'Not signed in'}</div>
+        <button className="sync" onClick={() => go('settings')} title="Google Drive sync">
+          <span className={'dot ' + dot} />{sync.status === 'off' ? 'On this device only' : sync.status === 'syncing' ? 'Syncing…' : sync.status === 'error' ? 'Sync problem' : 'Synced with Drive'}
+        </button>
       </nav>
 
       <main className="main">

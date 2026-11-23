@@ -5,6 +5,11 @@ import { connectGoogle, disconnectGoogle, gcalAvailable, syncCalendar } from '..
 import { desktop, isDesktop, isAndroid, platformName, openLink } from '../lib/platform';
 import { exportAll, restoreFrom, dailySnapshot } from '../lib/backup';
 import { aiReady, COMPAT_PRESETS } from '../lib/aiProvider';
+import { connectDrive, disconnectDrive, driveConnected } from '../lib/google';
+import { useDriveSync, syncDrive, syncSoon, listDriveBackups, downloadDriveFile, resetDriveCache } from '../lib/driveSync';
+
+/** SHA-1 of the certificate the released APKs are signed with (needed for the Android OAuth client). */
+const APK_SHA1 = 'D7:AB:96:D3:23:A1:F0:7A:2F:7D:89:AD:07:41:8F:A7:7F:8E:6E:27';
 import { testAI } from '../lib/ai';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
@@ -33,6 +38,86 @@ function Snapshots({ onRestored }: { onRestored: () => void }) {
         </div>
       ))}
       {snaps.length > 3 && <button className="linkish small" onClick={() => setOpen(!open)}>{open ? 'Show fewer' : `Show all ${snaps.length} daily backups`}</button>}
+    </div>
+  );
+}
+
+function DriveSection() {
+  const st = useDriveSync();
+  const s = useSettings();
+  const [busy, setBusy] = useState('');
+  const [setup, setSetup] = useState(false);
+  const [backups, setBackups] = useState<{ id: string; name: string }[] | null>(null);
+  const connected = driveConnected();
+  const needsClient = isDesktop() && !s.googleClientId.trim();
+
+  const run = async (name: string, fn: () => Promise<unknown>) => {
+    setBusy(name);
+    try { const r = await fn(); if (typeof r === 'string' && r) toast(r); } catch (e) { toast(errMsg(e), true); }
+    finally { setBusy(''); }
+  };
+  const ago = (ms: number) => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : `${Math.round(m / 60)} h ago`; };
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div className="settings-sec">
+        <h3>☁ Google Drive: sync & backup</h3>
+        <p>Keeps your phone and computer in sync and backs everything up to a folder called <b>Orbit</b> in your own Google Drive. Orbit can only see the files it creates there.</p>
+        {connected ? (<>
+          <div className="row wrap">
+            <span className={st.status === 'error' ? 'small' : 'ok-line'} style={st.status === 'error' ? { color: 'var(--danger)' } : undefined}>
+              {st.status === 'error' ? `⚠ ${st.message}` : `● Connected${s.driveEmail ? ` as ${s.driveEmail}` : ''}`}
+            </span>
+            <span className="small muted">{st.status === 'syncing' ? 'Syncing…' : st.lastSync ? `Last synced ${ago(st.lastSync)}${st.message && st.status !== 'error' ? ` · ${st.message}` : ''}` : ''}</span>
+          </div>
+          <div className="row wrap">
+            <button className="btn primary" disabled={!!busy || st.status === 'syncing'} onClick={() => run('sync', syncDrive)}>{st.status === 'syncing' ? 'Syncing…' : 'Sync now'}</button>
+            <button className="btn" disabled={!!busy} onClick={() => run('list', async () => { setBackups(await listDriveBackups()); return ''; })}>Restore from Drive…</button>
+            <button className="btn ghost" onClick={() => { if (confirm('Stop syncing this device with Google Drive? Your data stays on this device and in Drive.')) { disconnectDrive(); resetDriveCache(); toast('Google Drive disconnected'); } }}>Disconnect</button>
+          </div>
+          {backups && (
+            <div className="snaps">
+              {backups.length ? backups.map((b) => (
+                <div key={b.id} className="snap-row">
+                  <div style={{ flex: 1 }}><b>{b.name.replace('orbit-backup-', '').replace('.json', '')}</b><div className="small muted">Daily backup in Google Drive</div></div>
+                  <button className="btn sm" onClick={() => run('restore', async () => {
+                    if (!confirm('Bring back everything as it was in this backup? Items created since are kept.')) return '';
+                    const n = await restoreFrom(await downloadDriveFile(b.id));
+                    syncSoon(500);
+                    return `Restored ${n} records from Google Drive`;
+                  })}>Restore</button>
+                </div>
+              )) : <p>No backups in Drive yet; the first one is made at the next sync.</p>}
+            </div>
+          )}
+        </>) : (<>
+          <div className="row wrap">
+            <button className="btn primary" disabled={!!busy || needsClient} onClick={() => run('connect', async () => { const email = await connectDrive(); resetDriveCache(); const m = await syncDrive(); return `Google Drive connected${email ? ` (${email})` : ''}. ${m}`; })}>
+              {busy === 'connect' ? 'Waiting for Google…' : 'Connect Google Drive'}
+            </button>
+            {needsClient && <span className="small muted">Needs a one-time setup first (below)</span>}
+          </div>
+          <p>Connect on <b>each</b> device with the <b>same Google account</b>. The first device uploads your data; the others merge with it.</p>
+        </>)}
+        {(isDesktop() || isAndroid()) && (
+          <details open={setup || needsClient} onToggle={(e) => setSetup((e.target as HTMLDetailsElement).open)}>
+            <summary className="small" style={{ cursor: 'pointer', fontWeight: 600 }}>One-time Google setup (about 5 minutes)</summary>
+            <ol className="small setup-steps">
+              <li>Open <a href="#" onClick={(e) => { e.preventDefault(); openLink('https://console.cloud.google.com/projectcreate'); }}>console.cloud.google.com</a> and create a project called <b>Orbit</b>.</li>
+              <li>In <b>APIs &amp; Services → Library</b>, enable <b>Google Drive API</b> (and <b>Google Calendar API</b> if you want calendar sync).</li>
+              <li>In <b>OAuth consent screen</b>: choose <b>External</b>, fill in the app name, and add your Gmail under <b>Test users</b>.</li>
+              <li>In <b>Credentials → Create credentials → OAuth client ID</b>, choose <b>Desktop app</b>. Copy the client ID and secret into the boxes below (on the computer).</li>
+              <li>For the phone, create one more <b>OAuth client ID</b> of type <b>Android</b>: package name <code>com.orbit.planner</code>, SHA-1 <code style={{ overflowWrap: 'anywhere' }}>{APK_SHA1}</code>. Nothing needs to be typed on the phone.</li>
+            </ol>
+            {isDesktop() && (
+              <div className="grid2">
+                <label className="field">Client ID<input className="input" value={s.googleClientId} placeholder="….apps.googleusercontent.com" onChange={(e) => setSettings({ googleClientId: e.target.value.trim() })} /></label>
+                <label className="field">Client secret<input className="input" type="password" value={s.googleClientSecret} onChange={(e) => setSettings({ googleClientSecret: e.target.value.trim() })} /></label>
+              </div>
+            )}
+          </details>
+        )}
+      </div>
     </div>
   );
 }
@@ -172,34 +257,7 @@ export function Settings() {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div className="settings-sec">
-          <h3>☁ Cloud sync (Supabase)</h3>
-          <p>Keeps the Windows app and the Android app in sync. Create a free project at supabase.com, run <code>supabase/schema.sql</code> in its SQL editor, then paste the project URL and anon key here on both devices and sign in with the same account.</p>
-          <div className="grid2">
-            <label className="field">Project URL<input className="input" value={s.supabaseUrl} placeholder="https://xxxx.supabase.co" onChange={(e) => setSettings({ supabaseUrl: e.target.value.trim(), lastPull: '' })} /></label>
-            <label className="field">Anon (public) key<input className="input" type="password" value={s.supabaseAnonKey} onChange={(e) => setSettings({ supabaseAnonKey: e.target.value.trim(), lastPull: '' })} /></label>
-          </div>
-          {s.supabaseUrl && s.supabaseAnonKey && sync.status === 'off' && <button className="btn" onClick={() => initSync()}>Connect</button>}
-          {sync.email ? (
-            <div className="row wrap">
-              <span className="ok-line">Signed in as {sync.email}</span>
-              <span className="muted small">{sync.message}{sync.lastSync ? ` · ${new Date(sync.lastSync).toLocaleTimeString()}` : ''}</span>
-              <span style={{ flex: 1 }} />
-              <button className="btn" onClick={() => syncNow()}>Sync now</button>
-              <button className="btn" onClick={() => act('out', signOut)}>Sign out</button>
-            </div>
-          ) : sync.status !== 'off' && (
-            <div className="grid2">
-              <input className="input" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-              <input className="input" placeholder="Password" type="password" value={pw} onChange={(e) => setPw(e.target.value)} />
-              <button className="btn primary" disabled={!!busy} onClick={() => act('in', () => signIn(email, pw, false))}>Sign in</button>
-              <button className="btn" disabled={!!busy} onClick={() => act('up', () => signIn(email, pw, true))}>Create account</button>
-            </div>
-          )}
-          {sync.status === 'error' && <div className="small" style={{ color: 'var(--danger)' }}>{sync.message}</div>}
-        </div>
-      </div>
+      <DriveSection />
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="settings-sec">
@@ -262,7 +320,7 @@ export function Settings() {
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="settings-sec">
           <h3>💾 Your data & backups</h3>
-          <p>Everything is saved on this device the moment you change it. Finished items are never removed: they move to <b>Done & history</b>, and deleted items stay restorable for 30 days. Orbit also keeps a copy of all your data once a day{isDesktop() ? ', both inside the app and as a file in Documents\Orbit Backups' : ''}. Turn on cloud sync to also keep a copy online and on your other device.</p>
+          <p>Everything is saved on this device the moment you change it. Finished items are never removed: they move to <b>Done & history</b>, and deleted items stay restorable for 30 days. Orbit also keeps a copy of all your data once a day{isDesktop() ? ', both inside the app and as a file in Documents › Orbit Backups' : ''}. Connect Google Drive to also keep a copy online and use Orbit on your phone and computer together.</p>
           <Snapshots onRestored={() => syncNow()} />
           <div className="row wrap">
             <button className="btn" onClick={() => act('snap', async () => { await dailySnapshot(true); return 'Backup saved'; })}>Back up now</button>
