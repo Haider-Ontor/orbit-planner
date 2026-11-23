@@ -110,11 +110,21 @@ export interface CalEvent extends Base {
 /** A goal set for one week ("This week I will…"). Progress comes from its
  *  list of steps when it has one, otherwise from the manual slider.
  *  An unfinished goal stays open and can be carried into later weeks. */
+export interface SmartCriteria { specific: string; measurable: string; achievable: string; relevant: string }
+export interface MtoLevels { measure: string; min: number | null; target: number | null; outrageous: number | null; current: number }
+
 export interface Goal extends Base {
   title: string;
   details: string;
-  weekStart: string;          // Monday of the week it is planned for
-  firstWeek: string;          // Monday of the week it was first set (carry-over history)
+  /** A goal spans from `firstWeek` to `weekStart` (its due week). Pushing it
+   *  later extends the span; it stays open in every week in between. */
+  weekStart: string;          // Monday of the due week
+  firstWeek: string;          // Monday of the week it starts
+  priority?: 'high' | 'normal';
+  pushes?: number;            // times the due week was pushed later (not the planned span)
+  framework?: 'smart' | 'mto' | 'both' | 'none';
+  smart?: SmartCriteria;
+  mto?: MtoLevels;
   status: 'active' | 'done' | 'dropped';
   projectId: string | null;   // its steps (a project of kind "goal")
   progress: number;           // 0..100, used when there are no steps

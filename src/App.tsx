@@ -7,6 +7,8 @@ import { Icon } from './components/icons';
 import { Toaster, toast } from './components/ui';
 import { backgroundCheck } from './lib/update';
 import { TaskEditor } from './components/TaskEditor';
+import { QuickAddHost, openQuickAdd } from './components/QuickAdd';
+import { aiReady } from './lib/aiProvider';
 import { Today } from './views/Today';
 import { Matrix } from './views/Matrix';
 import { Goals } from './views/Goals';
@@ -21,24 +23,24 @@ import { Settings } from './views/Settings';
 import type { Task } from './lib/types';
 import type { View } from './lib/viewTypes';
 
-const NAV: { id: View; label: string; icon: string }[] = [
+const NAV_ALL: { id: View; label: string; icon: string }[] = [
   { id: 'today', label: 'Today', icon: 'today' },
   { id: 'goals', label: 'Weekly goals', icon: 'flag' },
-  { id: 'matrix', label: 'Priority matrix', icon: 'matrix' },
+  { id: 'projects', label: 'Projects', icon: 'projects' },
+  { id: 'matrix', label: 'Priorities', icon: 'matrix' },
+  { id: 'routines', label: 'Repeating tasks', icon: 'routine' },
   { id: 'tasks', label: 'All tasks', icon: 'tasks' },
-  { id: 'routines', label: 'Routines', icon: 'routine' },
-  { id: 'projects', label: 'Projects & learning', icon: 'projects' },
   { id: 'notes', label: 'Notes & voice', icon: 'notes' },
-  { id: 'calendar', label: 'Agenda', icon: 'calendar' },
-  { id: 'capture', label: 'Smart capture', icon: 'capture' },
+  { id: 'calendar', label: 'Calendar', icon: 'calendar' },
   { id: 'history', label: 'Done & history', icon: 'check' },
+  { id: 'capture', label: 'Paste & extract (AI)', icon: 'capture' },
 ];
 const TABS: { id: View; label: string; icon: string }[] = [
   { id: 'today', label: 'Today', icon: 'today' },
   { id: 'goals', label: 'Goals', icon: 'flag' },
-  { id: 'matrix', label: 'Matrix', icon: 'matrix' },
+  { id: 'projects', label: 'Projects', icon: 'projects' },
+  { id: 'matrix', label: 'Priorities', icon: 'matrix' },
   { id: 'notes', label: 'Notes', icon: 'notes' },
-  { id: 'capture', label: 'Capture', icon: 'capture' },
 ];
 
 export default function App() {
@@ -49,6 +51,7 @@ export default function App() {
   const tasks = useTasks();
   const projects = useProjects();
   const settings = useSettings();
+  const NAV = NAV_ALL.filter((n) => n.id !== 'capture' || aiReady());
   const sync = useSync();
 
   useEffect(() => { try { localStorage.setItem('orbit.view', view); } catch { /* ignore */ } }, [view]);
@@ -69,7 +72,7 @@ export default function App() {
     const k = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || editing) return;
-      if (e.key === 'n') { e.preventDefault(); open({ ...emptyTask() }); }
+      if (e.key === 'n') { e.preventDefault(); openQuickAdd(); }
       if (e.key === '/') { e.preventDefault(); go('capture'); }
     };
     window.addEventListener('keydown', k);
@@ -129,6 +132,7 @@ export default function App() {
       )}
 
       {editing && <TaskEditor task={editing.t} isNew={editing.isNew} projects={projects} onClose={() => setEditing(null)} />}
+      <QuickAddHost onMore={(t) => setEditing({ t, isNew: true })} />
       <Toaster />
     </div>
   );

@@ -1,6 +1,6 @@
 import { db, uid, save, alive } from './db';
 import { today, mondayOf, addDays, daysBetween } from './dates';
-import type { Task, Routine, Project, Note, Goal, PlanTask, PlanSub } from './types';
+import type { Task, Routine, Project, Note, Goal, PlanTask, PlanSub, MtoLevels } from './types';
 import type { ExtractedTask } from './ai';
 import { saveWithUndo, doneMsg } from './undo';
 
@@ -142,12 +142,41 @@ export function newGoal(p: Partial<Goal> = {}): Goal {
 
 export function goalProgress(g: Goal, projects: Map<string, Project>): number {
   if (g.status === 'done') return 100;
+  if (g.mto && (g.framework === 'mto' || g.framework === 'both') && g.mto.target) {
+    return Math.max(0, Math.min(100, Math.round((g.mto.current / g.mto.target) * 100)));
+  }
   const p = g.projectId ? projects.get(g.projectId) : undefined;
   return p && p.plan.length ? projectProgress(p) : g.progress;
 }
 
-/** Weeks since the goal was first set (0 = set this week). */
-export const weeksCarried = (g: Goal) => Math.max(0, Math.round(daysBetween(g.firstWeek, g.weekStart) / 7));
+/** Which MTO level the current value has reached. */
+export function mtoLevel(m: MtoLevels): 'none' | 'min' | 'target' | 'outrageous' {
+  if (m.outrageous != null && m.current >= m.outrageous) return 'outrageous';
+  if (m.target != null && m.current >= m.target) return 'target';
+  if (m.min != null && m.current >= m.min) return 'min';
+  return 'none';
+}
+
+/** Number of weeks the goal spans (1 = a single week). */
+export const goalWeeks = (g: Goal) => Math.max(1, Math.round(daysBetween(g.firstWeek, g.weekStart) / 7) + 1);
+/** How many weeks it has been pushed later than planned. Goals from before
+ *  v0.5 had no planned span, so their whole span counts as pushes. */
+export const weeksCarried = (g: Goal) => g.pushes ?? (g.framework ? 0 : goalWeeks(g) - 1);
+/** Is the goal open in this week? (start week ≤ week ≤ due week) */
+export const goalCoversWeek = (g: Goal, monday: string) => g.firstWeek <= monday && monday <= g.weekStart;
+
+/** Earliest week the due week may be moved back to: this week, never the past. */
+export const earliestDueWeek = () => mondayOf(today());
+
+/** Move the goal's due week. Moving later keeps the start, so the goal spans
+ *  all weeks in between. A goal that has not started yet moves as a whole. */
+export function movedGoal(g: Goal, newDue: string): Goal {
+  const due = newDue < earliestDueWeek() ? earliestDueWeek() : newDue;
+  const pushes = Math.max(0, weeksCarried(g) + Math.round(daysBetween(g.weekStart, due) / 7));
+  const notStarted = g.firstWeek > earliestDueWeek();
+  if (notStarted) return { ...g, firstWeek: due, weekStart: due, pushes: 0 }; // just rescheduled, not pushed
+  return { ...g, weekStart: due, firstWeek: g.firstWeek > due ? due : g.firstWeek, pushes };
+}
 
 /** The step list behind a goal (stored as a project of kind "goal"). */
 export function goalPlan(g: Goal, plan: PlanTask[] = []): Project {

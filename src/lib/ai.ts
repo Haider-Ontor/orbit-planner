@@ -3,6 +3,7 @@ import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { z } from 'zod';
 import { getSettings } from './settings';
 import { today } from './dates';
+import { aiReady, compatStructured } from './aiProvider';
 
 // What Claude returns when it reads an email, message, page or voice transcript.
 const ExtractedTask = z.object({
@@ -41,7 +42,7 @@ Rules:
 
 function client() {
   const key = getSettings().anthropicKey.trim();
-  if (!key) throw new Error('Add your Claude API key in Settings → AI to use smart capture.');
+  if (!key) throw new Error('Connect an AI service in Settings → AI first.');
   // Personal app: the key is the user's own and stays on their device.
   return new Anthropic({ apiKey: key, dangerouslyAllowBrowser: true });
 }
@@ -53,8 +54,11 @@ function contextLine(projects: string[]) {
     `Existing projects: ${projects.length ? projects.join('; ') : '(none)'}.`;
 }
 
-async function run(prompt: string, effort: 'low' | 'medium' | 'high'): Promise<Extraction> {
+/** One structured request to whichever AI service is connected. */
+async function structured<T>(system: string, prompt: string, schema: z.ZodType<T>, effort: 'low' | 'medium' | 'high'): Promise<T> {
+  if (!aiReady()) throw new Error('Connect an AI service in Settings → AI first.');
   const s = getSettings();
+  if (s.aiProvider === 'compatible') return compatStructured(system, prompt, schema);
   let res;
   try {
     res = await client().beta.messages.parse({
@@ -63,17 +67,25 @@ async function run(prompt: string, effort: 'low' | 'medium' | 'high'): Promise<E
       // If the model declines, the API re-runs the request on a fallback model.
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
-      system: SYSTEM,
+      system,
       messages: [{ role: 'user', content: prompt }],
-      output_config: { effort, format: betaZodOutputFormat(Extraction) },
+      output_config: { effort, format: betaZodOutputFormat(schema) },
     });
   } catch (e) {
     throw new Error(friendlyError(e));
   }
-  if (res.stop_reason === 'refusal') throw new Error('Claude declined to process this text.');
-  if (res.stop_reason === 'max_tokens') throw new Error('The text produced too many tasks. Try pasting a shorter part.');
+  if (res.stop_reason === 'refusal') throw new Error('Claude declined to process this.');
+  if (res.stop_reason === 'max_tokens') throw new Error('The answer was too long. Try a shorter text.');
   if (!res.parsed_output) throw new Error('Could not read the AI response. Try again.');
-  return res.parsed_output;
+  return res.parsed_output as T;
+}
+
+const run = (prompt: string, effort: 'low' | 'medium' | 'high') => structured(SYSTEM, prompt, Extraction, effort);
+
+/** Small request used by Settings → "Test connection". */
+export async function testAI(): Promise<string> {
+  const r = await structured('You are a connection test.', 'Reply with ok = true and a 3-word greeting.', z.object({ ok: z.boolean(), greeting: z.string() }), 'low');
+  return r.ok ? `Connected: "${r.greeting}"` : 'Connected, but the reply was unexpected.';
 }
 
 export function extractTasks(text: string, projects: string[]) {
@@ -109,28 +121,14 @@ const PLAN_SYSTEM = `You break a personal goal into a short, realistic plan that
 - If the goal is bigger than the time available, plan the most important part and end with a sub-task "Decide next steps".`;
 
 export async function planGoal(goal: string, details: string, startDate: string, finishBy: string): Promise<PlanTasksAI> {
-  const s = getSettings();
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  let res;
-  try {
-    res = await client().beta.messages.parse({
-      model: s.aiModel || 'claude-opus-5-5',
-      max_tokens: 16000,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
-      system: PLAN_SYSTEM,
-      messages: [{
-        role: 'user',
-        content: `Goal: ${goal}\n${details ? `Details: ${details}\n` : ''}Plan start: ${startDate}. Finish by: ${finishBy}. Today is ${today()} (timezone ${tz}).`,
-      }],
-      output_config: { effort: 'medium', format: betaZodOutputFormat(Plan) },
-    });
-  } catch (e) {
-    throw new Error(friendlyError(e));
-  }
-  if (res.stop_reason === 'refusal') throw new Error('Claude declined to plan this goal.');
-  if (!res.parsed_output?.tasks.length) throw new Error('Could not build a plan. Try adding a few details to the goal.');
-  return res.parsed_output.tasks;
+  const out = await structured(PLAN_SYSTEM,
+    `Goal: ${goal}
+${details ? `Details: ${details}
+` : ''}Plan start: ${startDate}. Finish by: ${finishBy}. Today is ${today()} (timezone ${tz}).`,
+    Plan, 'medium');
+  if (!out.tasks.length) throw new Error('Could not build a plan. Try adding a few details to the goal.');
+  return out.tasks;
 }
 
 function friendlyError(e: unknown): string {

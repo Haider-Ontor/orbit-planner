@@ -4,6 +4,8 @@ import { useSync, signIn, signOut, initSync, syncNow } from '../lib/sync';
 import { connectGoogle, disconnectGoogle, gcalAvailable, syncCalendar } from '../lib/gcal';
 import { desktop, isDesktop, isAndroid, platformName, openLink } from '../lib/platform';
 import { exportAll, restoreFrom, dailySnapshot } from '../lib/backup';
+import { aiReady, COMPAT_PRESETS } from '../lib/aiProvider';
+import { testAI } from '../lib/ai';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../lib/db';
 import { SYNC_TABLES } from '../lib/types';
@@ -128,19 +130,45 @@ export function Settings() {
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="settings-sec">
-          <h3>✨ AI (Claude)</h3>
-          <p>Used for smart capture and for organising notes. Get a key at console.anthropic.com → API keys.</p>
-          <label className="field">Claude API key
-            <div className="row"><input className="input" type={showKey ? 'text' : 'password'} value={s.anthropicKey} placeholder="sk-ant-…" onChange={(e) => setSettings({ anthropicKey: e.target.value.trim() })} />
-              <button className="btn" onClick={() => setShowKey(!showKey)}>{showKey ? 'Hide' : 'Show'}</button></div>
-          </label>
-          <label className="field">Model
-            <select className="select" value={s.aiModel} onChange={(e) => setSettings({ aiModel: e.target.value })}>
-              <option value="claude-opus-5-5">Claude Opus 5.5 (best)</option>
-              <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (faster, cheaper)</option>
-              <option value="claude-haiku-5-5">Claude Haiku 5.5 (cheapest)</option>
-            </select>
-          </label>
+          <div className="row wrap">
+            <h3 style={{ flex: 1 }}>✨ AI helper (optional)</h3>
+            <label className="switch"><input type="checkbox" checked={s.aiEnabled} onChange={(e) => setSettings({ aiEnabled: e.target.checked })} /><span>{s.aiEnabled ? 'On' : 'Off'}</span></label>
+          </div>
+          <p>Connect an AI service to turn on <b>Paste & extract</b> (turn an email or message into tasks), <b>Organise note</b> and <b>Suggest steps</b> for goals. These buttons stay hidden until a service is connected. Everything else works without AI.</p>
+          {s.aiEnabled && (<>
+            <div className="seg" style={{ alignSelf: 'flex-start' }}>
+              <button className={s.aiProvider === 'anthropic' ? 'on' : ''} onClick={() => setSettings({ aiProvider: 'anthropic' })}>Claude</button>
+              <button className={s.aiProvider === 'compatible' ? 'on' : ''} onClick={() => setSettings({ aiProvider: 'compatible' })}>Other service</button>
+            </div>
+            {s.aiProvider === 'anthropic' ? (<>
+              <label className="field">Claude API key <span className="muted" style={{ fontWeight: 400 }}>(from console.anthropic.com → API keys)</span>
+                <div className="row"><input className="input" type={showKey ? 'text' : 'password'} value={s.anthropicKey} placeholder="sk-ant-…" onChange={(e) => setSettings({ anthropicKey: e.target.value.trim() })} />
+                  <button className="btn" onClick={() => setShowKey(!showKey)}>{showKey ? 'Hide' : 'Show'}</button></div>
+              </label>
+              <label className="field">Model
+                <select className="select" value={s.aiModel} onChange={(e) => setSettings({ aiModel: e.target.value })}>
+                  <option value="claude-opus-5-5">Claude Opus 5.5 (best)</option>
+                  <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (faster, cheaper)</option>
+                  <option value="claude-haiku-5-5">Claude Haiku 5.5 (cheapest)</option>
+                </select>
+              </label>
+            </>) : (<>
+              <p>Works with any service that speaks the OpenAI chat format. Tap one to fill in its address, then paste your key and a model name from that service.</p>
+              <div className="row wrap" style={{ gap: 6 }}>
+                {COMPAT_PRESETS.map((pr) => <button key={pr.name} className={'btn sm' + (s.compatBaseUrl === pr.url ? ' primary' : '')} title={pr.note} onClick={() => setSettings({ compatBaseUrl: pr.url })}>{pr.name}</button>)}
+              </div>
+              {COMPAT_PRESETS.find((pr) => pr.url === s.compatBaseUrl) && <p>{COMPAT_PRESETS.find((pr) => pr.url === s.compatBaseUrl)!.note}.</p>}
+              <label className="field">Service address<input className="input" value={s.compatBaseUrl} placeholder="https://…/v1" onChange={(e) => setSettings({ compatBaseUrl: e.target.value.trim() })} /></label>
+              <div className="grid2">
+                <label className="field">API key<input className="input" type="password" value={s.compatKey} placeholder="(not needed for Ollama)" onChange={(e) => setSettings({ compatKey: e.target.value.trim() })} /></label>
+                <label className="field">Model name<input className="input" value={s.compatModel} placeholder="model id from the service's list" onChange={(e) => setSettings({ compatModel: e.target.value.trim() })} /></label>
+              </div>
+            </>)}
+            <div className="row wrap">
+              <button className="btn" disabled={!aiReady() || !!busy} onClick={() => act('ai', testAI)}>{busy === 'ai' ? 'Testing…' : 'Test connection'}</button>
+              <span className={aiReady() ? 'ok-line' : 'small muted'}>{aiReady() ? '● Connected: AI buttons are visible' : 'Not connected yet'}</span>
+            </div>
+          </>)}
         </div>
       </div>
 

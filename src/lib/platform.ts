@@ -10,6 +10,7 @@ export interface DesktopBridge {
   setBadge(n: number): Promise<void>;
   installUpdate?(url: string): Promise<void>;
   writeBackup?(name: string, json: string): Promise<string>;
+  httpPost?(url: string, headers: Record<string, string>, body: string): Promise<{ status: number; text: string }>;
   openBackupFolder?(): Promise<void>;
   onUpdateProgress(cb: (p: { loaded: number; total: number }) => void): () => void;
 }

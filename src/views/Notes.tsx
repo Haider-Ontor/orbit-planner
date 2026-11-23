@@ -6,6 +6,7 @@ import { newNote } from '../lib/models';
 import { startVoice, transcribe, type VoiceSession } from '../lib/voice';
 import { organizeNote, type Extraction } from '../lib/ai';
 import { isAndroid } from '../lib/platform';
+import { aiReady } from '../lib/aiProvider';
 import { ExtractReview } from '../components/ExtractReview';
 import { Modal, ViewHead, errMsg, toast } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -156,7 +157,7 @@ function NoteEditor({ note, projects, busy, onOrganize, onDelete, onBack }: {
           <option value="">No project</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
         <span style={{ flex: 1 }} />
-        <button className="btn" disabled={busy || !n.body.trim()} onClick={onOrganize}><Icon name="capture" size={15} /> Organise into tasks</button>
+        {aiReady() && <button className="btn" disabled={busy || !n.body.trim()} onClick={onOrganize}><Icon name="capture" size={15} /> Organise into tasks</button>}
         <button className="btn ghost danger" onClick={del} aria-label="Delete note"><Icon name="trash" size={15} /></button>
       </div>
       <input className="title-in" placeholder="Title" autoFocus={!note.title && !note.body} value={n.title} onChange={(e) => up({ title: e.target.value })} />

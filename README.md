@@ -35,19 +35,19 @@ Everything works offline straight away. To link the phone and the PC, turn on cl
 
 | Screen | What it does |
 |---|---|
-| **Today** | "Do next" ranked by impact, urgency and deadline · overdue · due today · routines · calendar · 7-day lookahead · quick add |
-| **Weekly goals** | "This week I will…" goals for each week. Break a goal into steps (tasks → sub-tasks with deadlines), yourself or planned by Claude; the goal's progress follows its steps. Unfinished goals stay open and can be carried into the next week. Last-8-weeks history bar. |
-| **Priority matrix** | The four quadrants (First / Second / Third priority / Eliminate). Drag tasks between them. Deadlines push tasks toward *Critical* automatically. |
+| **Today** | A dashboard: gauges for today, this week's goals and repeating tasks, a live clock and status light, a 14-day "finished" trace, then *Do next*, steps due, repeating tasks, goals and *Done today*. Tap **+** (or *Add a task*) to add anything. |
+| **Weekly goals** | **New goal** walks you through it: what you want, what kind of goal it is (finish something → SMART; habit or number → Minimum / Target / Outrageous; or both), the criteria, start and finish week, top priority or normal, and small daily actions on chosen days. Use **‹ ›** on a goal to move its due week: later as often as needed (it stays open across every week in between), earlier but never before this week. Shows goals needing a new week, coming up, and recently achieved. |
+| **Priorities** | First → Second → Third → Eliminate, top to bottom. Each task has one **Move ▾** menu (on a computer you can also drag the ⋮⋮ handle). Empty sections fold away. Deadlines move tasks up on their own. |
 | **All tasks** | Search, filter by project/quadrant, sort by priority or deadline |
-| **Routines** | Daily / weekday / weekly / every-N-days habits with a 7-day check grid, streaks and 30-day completion rate |
-| **Projects & learning** | Each project is a list of tasks, each with sub-tasks that have deadlines. Tick things off, see progress, and switch to a **Timeline** view (bars per task, a marker for every sub-task deadline, a today line). Built for the phone: big tap targets and the phone's own date picker. Upcoming and overdue steps also appear on **Today**. |
+| **Repeating tasks** | Things you do every day or on chosen days (e.g. water the plants on Mon and Thu). Add them from **+** → *Some days*. 7-day tick grid, streaks, 30-day rate. |
+| **Projects** | Its own tab. Each project is a list of tasks, each with sub-tasks that have deadlines. Tick things off, see progress, and switch to a **Timeline** view. Built for the phone. Upcoming and overdue steps also appear on **Today**. |
 | **Done & history** | Everything you finished, day by day: to-dos, plan steps, routines and goals, with a bar chart for the week. Each item has **Reopen** in case it was ticked by mistake. **Recently deleted** keeps deleted items for 30 days with **Restore**. |
 | **Undo** | Ticking, unticking, deleting, moving or archiving shows an **Undo** button for 10 seconds. Finished items never vanish: they stay under **Done today** on Today and in Done & history. |
 | **Backups** | Saved instantly on the device, plus an automatic daily copy inside the app (last 14 days, Settings → Your data & backups → Restore). On Windows the same copy is also written to `Documents\Orbit Backups` (last 30 days). |
 | **Updates** | **Settings → Updates** checks GitHub for a newer version and installs it, on Windows and Android. |
-| **Notes & voice** | Text notes and voice notes (speech → text). "Organise into tasks" turns a note into tasks with Claude. |
-| **Agenda** | Google Calendar events + timed tasks + deadlines + routines for the next 7/14/30 days |
-| **Smart capture** | Paste an email or message; Claude extracts tasks, deadlines, times, links and a checklist of what you need (documents, fees, signatures). You review before anything is added. |
+| **Notes & voice** | Text notes and voice notes (speech → text). With AI connected, *Organise into tasks* turns a note into tasks. |
+| **Calendar** | Google Calendar events + timed tasks + deadlines + repeating tasks for the next 7/14/30 days |
+| **Paste & extract (AI)** | Hidden until an AI service is connected in Settings. Paste an email or message; the AI extracts tasks, deadlines, times, links and a checklist of what you need. You review before anything is added. |
 
 Quick-add syntax: `Submit form fri 5pm !!` → due Friday 17:00, high impact + critical. `!` = important, `!!` = important and critical. Understands `today`, `tomorrow`, weekday names, `in 3 days`, `12/3` (day/month), `2026-12-03`, `5pm`, `17:30`.
 
@@ -57,8 +57,12 @@ Keyboard (desktop): `N` new task · `/` smart capture.
 
 ## Setup inside the app (Settings)
 
-### 1. Claude (smart capture, organising notes)
-Create an API key at console.anthropic.com → API keys and paste it in **Settings → AI**. Default model: Claude Opus 5.5; Sonnet 5.5 / Haiku 5.5 are cheaper. The key is stored only on that device and calls go straight from the app to the Claude API. If the model declines a request, the API retries it on a fallback model automatically.
+### 1. AI helper (optional)
+Orbit works fully without AI. To turn on *Paste & extract*, *Organise note* and *Suggest steps*, open **Settings → AI helper** and connect one service:
+- **Claude:** paste an API key from console.anthropic.com → API keys (default model Claude Opus 5.5; Sonnet 5.5 / Haiku 5.5 are cheaper). If the model declines a request, the API retries it on a fallback model automatically.
+- **Other service:** any OpenAI-compatible API. Tap a preset (OpenAI, Google Gemini, Groq, OpenRouter, or Ollama on your own PC), paste its key and a model name. Gemini, Groq and OpenRouter offer free tiers; Ollama is free and runs offline.
+
+Press **Test connection**. Keys stay on that device. There is no keyless public AI service that is reliable enough to build on, so a (free) key is needed.
 
 ### 2. Cloud sync (desktop ↔ phone)
 1. Create a free project at supabase.com.

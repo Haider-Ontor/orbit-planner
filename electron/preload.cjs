@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('orbitDesktop', {
   setBadge: (n) => ipcRenderer.invoke('set-badge', n),
   installUpdate: (url) => ipcRenderer.invoke('update-install', url),
   writeBackup: (name, json) => ipcRenderer.invoke('backup-write', name, json),
+  httpPost: (url, headers, body) => ipcRenderer.invoke('http-post', url, headers, body),
   openBackupFolder: () => ipcRenderer.invoke('backup-open-folder'),
   onUpdateProgress: (cb) => {
     const h = (_e, p) => cb(p);

@@ -2,8 +2,13 @@ import { useSyncExternalStore } from 'react';
 
 // Device-local settings (keys and tokens never leave this device).
 export interface Settings {
+  aiEnabled: boolean;
+  aiProvider: 'anthropic' | 'compatible';
   anthropicKey: string;
   aiModel: string;
+  compatBaseUrl: string;
+  compatKey: string;
+  compatModel: string;
   supabaseUrl: string;
   supabaseAnonKey: string;
   googleClientId: string;
@@ -20,8 +25,13 @@ export interface Settings {
 }
 
 const DEFAULTS: Settings = {
+  aiEnabled: true,
+  aiProvider: 'anthropic',
   anthropicKey: '',
   aiModel: 'claude-opus-5-5',
+  compatBaseUrl: '',
+  compatKey: '',
+  compatModel: '',
   supabaseUrl: '',
   supabaseAnonKey: '',
   googleClientId: '',

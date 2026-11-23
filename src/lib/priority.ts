@@ -5,11 +5,13 @@ import { today, daysBetween } from './dates';
  *  y = Impact / potential reward, x = Importance / urgency. */
 export type Quadrant = 'first' | 'second' | 'third' | 'eliminate';
 
-export const QUADRANTS: Record<Quadrant, { label: string; hint: string; color: string; ink: string }> = {
-  first:     { label: 'First Priority',  hint: 'High impact · Critical',  color: '#e8004f', ink: '#ffffff' },
-  second:    { label: 'Second Priority', hint: 'High impact · Neutral',   color: '#f6c700', ink: '#2a2a2a' },
-  third:     { label: 'Third Priority',  hint: 'Low impact · Critical',   color: '#12c4f0', ink: '#0b2530' },
-  eliminate: { label: 'Eliminate',       hint: 'Low impact · Neutral',    color: '#283441', ink: '#ffffff' },
+/** In order from most to least urgent. `hint` is the plain-language meaning. */
+export const QUADRANT_ORDER: Quadrant[] = ['first', 'second', 'third', 'eliminate'];
+export const QUADRANTS: Record<Quadrant, { label: string; hint: string; action: string; color: string; ink: string }> = {
+  first:     { label: 'First Priority',  action: 'Do it now',          hint: 'Important and urgent',          color: '#e11d48', ink: '#ffffff' },
+  second:    { label: 'Second Priority', action: 'Plan a time for it', hint: 'Important, not urgent',         color: '#d97706', ink: '#ffffff' },
+  third:     { label: 'Third Priority',  action: 'Do it quickly',      hint: 'Urgent, less important',        color: '#0284c7', ink: '#ffffff' },
+  eliminate: { label: 'Eliminate',       action: 'Drop it or do later', hint: 'Neither important nor urgent', color: '#64748b', ink: '#ffffff' },
 };
 
 /** Days until due (negative = overdue), or null. */

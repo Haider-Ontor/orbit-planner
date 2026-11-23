@@ -194,6 +194,16 @@ ipcMain.handle('backup-open-folder', async () => {
   await shell.openPath(backupDir());
 });
 
+/* AI services that don't allow browser (CORS) calls are reached from here.
+ * Only https, or http to this computer (e.g. a local Ollama). */
+ipcMain.handle('http-post', async (_e, url, headers, body) => {
+  const u = new URL(url);
+  const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1';
+  if (!(u.protocol === 'https:' || (u.protocol === 'http:' && local))) throw new Error('Only https addresses are allowed');
+  const r = await fetch(url, { method: 'POST', headers, body });
+  return { status: r.status, text: await r.text() };
+});
+
 ipcMain.handle('launch-at-login', (_e, on) => { app.setLoginItemSettings({ openAtLogin: !!on, args: ['--hidden'] }); return true; });
 ipcMain.handle('get-launch-at-login', () => app.getLoginItemSettings().openAtLogin);
 ipcMain.handle('open-external', (_e, url) => {

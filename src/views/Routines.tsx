@@ -18,8 +18,8 @@ export function Routines() {
 
   return (
     <div className="view">
-      <ViewHead title="Routines" sub="Daily and repeating habits: study blocks, reviews, gym, planning.">
-        <button className="btn primary" onClick={() => setEdit({ r: newRoutine(), isNew: true })}><Icon name="plus" size={16} /> Routine</button>
+      <ViewHead title="Repeating tasks" sub="Things you do every day or on certain days: water the plants, gym, review notes. Tick them off on Today.">
+        <button className="btn primary" onClick={() => setEdit({ r: newRoutine(), isNew: true })}><Icon name="plus" size={16} /> Add</button>
       </ViewHead>
       {cats.map((cat) => (
         <div className="card" key={cat} style={{ marginBottom: 16 }}>
@@ -52,7 +52,7 @@ export function Routines() {
           })}
         </div>
       ))}
-      {!routines.length && <div className="card"><div className="empty" style={{ padding: 24 }}>No routines yet. Add things you do every day or every week.</div></div>}
+      {!routines.length && <div className="card"><div className="empty" style={{ padding: 24 }}>Nothing repeating yet. Tap Add and choose the days.</div></div>}
       {edit && <RoutineEditor r={edit.r} isNew={edit.isNew} cats={cats} onClose={() => setEdit(null)} />}
       <button className="fab" aria-label="New routine" onClick={() => setEdit({ r: newRoutine(), isNew: true })}>+</button>
     </div>

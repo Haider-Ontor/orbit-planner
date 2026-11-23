@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTasks, useProjects } from '../lib/hooks';
 import { score, quadrantOf, QUADRANTS, type Quadrant } from '../lib/priority';
-import { newTask } from '../lib/models';
+import { openQuickAdd } from '../components/QuickAdd';
 import { TaskRow } from '../components/TaskRow';
 import { ViewHead } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -35,7 +35,7 @@ export function Tasks({ open }: { open: (t: Task) => void }) {
   return (
     <div className="view">
       <ViewHead title="All tasks" sub={`${tasks.filter((t) => t.status !== 'done').length} open · ${tasks.filter((t) => t.status === 'done').length} done`}>
-        <button className="btn primary" onClick={() => open(newTask())}><Icon name="plus" size={16} /> Task</button>
+        <button className="btn primary" onClick={() => openQuickAdd()}><Icon name="plus" size={16} /> Add</button>
       </ViewHead>
       <div className="toolbar">
         <input className="input" style={{ maxWidth: 260 }} placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -53,7 +53,7 @@ export function Tasks({ open }: { open: (t: Task) => void }) {
       <div className="card"><div className="card-b" style={{ padding: 8 }}>
         {list.length ? list.map((t) => <TaskRow key={t.id} t={t} projects={pmap} onOpen={open} />) : <div className="empty">No tasks match.</div>}
       </div></div>
-      <button className="fab" aria-label="New task" onClick={() => open(newTask())}>+</button>
+      <button className="fab" aria-label="Add" onClick={() => openQuickAdd()}>+</button>
     </div>
   );
 }

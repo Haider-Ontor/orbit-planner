@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { extractTasks, type Extraction } from '../lib/ai';
 import { useProjects } from '../lib/hooks';
 import { useSettings } from '../lib/settings';
+import { aiReady } from '../lib/aiProvider';
 import { ExtractReview } from '../components/ExtractReview';
 import { ViewHead, errMsg, toast } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -27,10 +28,10 @@ export function Capture({ go }: { go: (v: View) => void }) {
 
   return (
     <div className="view">
-      <ViewHead title="Smart capture" sub="Paste an email, message, notice or web page. Claude pulls out the tasks, deadlines, times and everything you need to have ready." />
-      {!s.anthropicKey && (
+      <ViewHead title="Paste & extract" sub="Paste an email, message, notice or web page. The AI pulls out the tasks, deadlines, times and everything you need to have ready." />
+      {!aiReady() && (
         <div className="card" style={{ padding: 14, marginBottom: 14, borderColor: 'var(--warn)' }}>
-          Add your Claude API key first. <button className="btn sm" onClick={() => go('settings')}>Open Settings</button>
+          Paste & extract needs an AI service. Connect one in Settings → AI helper. <button className="btn sm" onClick={() => go('settings')}>Open Settings</button>
         </div>
       )}
       <div className="cap-grid">
