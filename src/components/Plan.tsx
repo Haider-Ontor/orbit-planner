@@ -5,18 +5,21 @@ import { today, niceDate, daysBetween, addDays, parseDate } from '../lib/dates';
 import { Check, Progress, toast } from './ui';
 import { doneMsg } from '../lib/undo';
 import { Icon } from './icons';
+import { DeadlineChip } from './DeadlinePicker';
+import { isOverdue, countdown, deadlineText, deadlineMs } from '../lib/deadline';
 
 /* A plan = tasks, each with sub-tasks that have deadlines.
  * List view for doing/editing (big touch targets, native date pickers),
  * timeline view for seeing it laid out over time. */
 
-const overdue = (due: string | null, done: boolean) => !!due && !done && due < today();
+const overdue = (due: string | null, done: boolean, time?: string | null) => isOverdue(due, time, done);
+/** When a task must be finished: its own deadline, else its last sub-task deadline. */
+const taskEnd = (t: PlanTask) => t.due ? deadlineMs(t.due, t.dueTime) : Math.max(0, ...t.subs.map((s) => deadlineMs(s.due, s.dueTime) ?? 0)) || null;
 
-function DateChip({ value, onChange, placeholder, done }: { value: string | null; onChange: (v: string | null) => void; placeholder: string; done?: boolean }) {
+function DateChip({ value, onChange, placeholder }: { value: string | null; onChange: (v: string | null) => void; placeholder: string }) {
   const ref = useRef<HTMLInputElement>(null);
-  const late = done !== undefined && overdue(value, done); // only deadlines turn red, not start dates
   return (
-    <label className={'date-chip' + (late ? ' late' : '') + (value ? '' : ' empty')} onClick={(e) => e.stopPropagation()}>
+    <label className={'date-chip' + (value ? '' : ' empty')} onClick={(e) => e.stopPropagation()}>
       <span>{value ? niceDate(value) : placeholder}</span>
       <input ref={ref} type="date" value={value ?? ''} aria-label={placeholder} onChange={(e) => onChange(e.target.value || null)} />
     </label>
@@ -36,7 +39,7 @@ function NameInput({ value, onCommit, placeholder, className, autoFocus }: { val
   );
 }
 
-export function PlanEditor({ project, onChange, compact }: { project: Project; onChange: (p: Project) => void; compact?: boolean }) {
+export function PlanEditor({ project, onChange, compact, week }: { project: Project; onChange: (p: Project) => void; compact?: boolean; week?: string }) {
   const [plan, setPlan] = useState<PlanTask[]>(project.plan);
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [view, setView] = useState<'list' | 'timeline'>('list');
@@ -86,10 +89,15 @@ export function PlanEditor({ project, onChange, compact }: { project: Project; o
     setOpen((o) => ({ ...o, [t.id]: true }));
     setJustAdded(t.id);
   };
-  const addSub = (t: PlanTask, name: string, due: string | null) => {
+  const addSub = (t: PlanTask, name: string, due: string | null, dueTime: string | null) => {
     if (!name.trim()) return;
-    upTask(t.id, { subs: [...t.subs, newPlanSub({ name: name.trim(), due })], done: false });
+    upTask(t.id, { subs: [...t.subs, newPlanSub({ name: name.trim(), due, dueTime })], done: false });
   };
+  // Tasks in deadline order (no deadline last); offered only when they are out of order.
+  const byDl = (a: number | null, b: number | null) => (a ?? Infinity) - (b ?? Infinity);
+  const sorted = [...plan].sort((a, b) => byDl(taskEnd(a), taskEnd(b)));
+  const outOfOrder = plan.filter((t) => taskEnd(t)).length >= 2 && sorted.some((t, i) => t.id !== plan[i].id);
+  const sortByDeadline = () => commitUndo(sorted.map((t) => ({ ...t, subs: [...t.subs].sort((a, b) => byDl(deadlineMs(a.due, a.dueTime), deadlineMs(b.due, b.dueTime))) })), 'Sorted by deadline');
   const move = (i: number, d: -1 | 1) => {
     const j = i + d; if (j < 0 || j >= plan.length) return;
     const next = [...plan]; [next[i], next[j]] = [next[j], next[i]]; commit(next);
@@ -107,9 +115,10 @@ export function PlanEditor({ project, onChange, compact }: { project: Project; o
           <div className="small muted" style={{ marginBottom: 5 }}>{total ? `${done} of ${total} steps done · ${pct}%` : 'No steps yet'}</div>
           <Progress value={pct} />
         </div>
+        {view === 'list' && outOfOrder && <button className="btn sm" onClick={sortByDeadline} data-tip="Put the tasks in deadline order, soonest first. You can undo."><Icon name="sort" size={14} /> Sort by deadline</button>}
         <div className="seg">
-          <button className={view === 'list' ? 'on' : ''} onClick={() => setView('list')}>List</button>
-          <button className={view === 'timeline' ? 'on' : ''} onClick={() => setView('timeline')}>Timeline</button>
+          <button className={view === 'list' ? 'on' : ''} onClick={() => setView('list')} data-tip="Tasks and their sub-tasks as a checklist. Tap a task to open it.">List</button>
+          <button className={view === 'timeline' ? 'on' : ''} onClick={() => setView('timeline')} data-tip="The same tasks laid out on a timeline by date, with today marked.">Timeline</button>
         </div>
       </div>
 
@@ -120,6 +129,7 @@ export function PlanEditor({ project, onChange, compact }: { project: Project; o
           {plan.map((t, i) => {
             const isOpen = !!open[t.id];
             const tp = taskProgress(t);
+            const cd = countdown(t.due, t.dueTime, t.done);
             return (
               <div key={t.id} className={'ptask' + (t.done ? ' done' : '')}>
                 <div className="ptask-row">
@@ -128,7 +138,9 @@ export function PlanEditor({ project, onChange, compact }: { project: Project; o
                     <div className="ptask-name">{t.name || <span className="muted">Untitled task</span>}</div>
                     <div className="ptask-meta">
                       {t.subs.length > 0 && <span>{t.subs.filter((s) => s.done).length}/{t.subs.length}</span>}
-                      {(t.start || t.due) && <span className={overdue(t.due, t.done) ? 'late-text' : ''}>{t.start ? niceDate(t.start) : '…'} → {t.due ? niceDate(t.due) : '…'}</span>}
+                      {t.due ? <span className={cd.tone === 'over' ? 'late-text' : ''}>{t.start ? `${niceDate(t.start)} → ` : 'By '}{t.start ? deadlineText(t.due, t.dueTime) : deadlineText(t.due, t.dueTime).replace(/^(Today|Tomorrow|Yesterday)/, (x) => x.toLowerCase())}</span>
+                        : t.start ? <span>From {niceDate(t.start)}</span> : null}
+                      {cd.text && <span className={'cd ' + cd.tone}>{cd.text}</span>}
                     </div>
                     {t.subs.length > 0 && <div className="mini-prog"><i style={{ width: `${tp}%` }} /></div>}
                   </div>
@@ -142,10 +154,11 @@ export function PlanEditor({ project, onChange, compact }: { project: Project; o
                     <NameInput value={t.name} placeholder="Task name" className="task-name-in" autoFocus={justAdded === t.id && !t.name}
                       onCommit={(v) => upTask(t.id, { name: v })} />
                     <div className="row wrap" style={{ gap: 8 }}>
-                      <span className="small muted">Start</span>
-                      <DateChip value={t.start} placeholder="Set start" onChange={(v) => upTask(t.id, { start: v })} />
                       <span className="small muted">Deadline</span>
-                      <DateChip value={t.due} placeholder="Set deadline" done={t.done} onChange={(v) => upTask(t.id, { due: v })} />
+                      <DeadlineChip date={t.due} time={t.dueTime} done={t.done} week={week} name={t.name} placeholder="Set deadline"
+                        onChange={(d, tm) => upTask(t.id, { due: d, dueTime: tm })} />
+                      <span className="small muted">Start</span>
+                      <DateChip value={t.start} placeholder="Optional" onChange={(v) => upTask(t.id, { start: v })} />
                     </div>
 
                     <div className="subs">
@@ -153,11 +166,12 @@ export function PlanEditor({ project, onChange, compact }: { project: Project; o
                         <div key={s.id} className={'psub' + (s.done ? ' done' : '')}>
                           <Check on={s.done} onClick={() => toggleSub(t, s)} label={`Mark ${s.name} done`} />
                           <NameInput value={s.name} placeholder="Sub-task" onCommit={(v) => upSub(t.id, s.id, { name: v })} />
-                          <DateChip value={s.due} placeholder="Due" done={s.done} onChange={(v) => upSub(t.id, s.id, { due: v })} />
+                          <DeadlineChip date={s.due} time={s.dueTime} done={s.done} week={week} name={s.name} placeholder="Due"
+                            onChange={(d, tm) => upSub(t.id, s.id, { due: d, dueTime: tm })} />
                           <button className="icon-btn" onClick={() => delSub(t, s)} aria-label="Delete sub-task"><Icon name="x" size={14} /></button>
                         </div>
                       ))}
-                      <AddSub defaultDue={t.due} onAdd={(name, due) => addSub(t, name, due)} />
+                      <AddSub week={week} onAdd={(name, due, tm) => addSub(t, name, due, tm)} />
                     </div>
 
                     <div className="row" style={{ gap: 6 }}>
@@ -182,15 +196,15 @@ export function PlanEditor({ project, onChange, compact }: { project: Project; o
   );
 }
 
-function AddSub({ onAdd, defaultDue }: { onAdd: (name: string, due: string | null) => void; defaultDue: string | null }) {
+function AddSub({ onAdd, week }: { onAdd: (name: string, due: string | null, time: string | null) => void; week?: string }) {
   const [name, setName] = useState('');
-  const [due, setDue] = useState<string | null>(null);
-  const go = () => { if (!name.trim()) return; onAdd(name, due); setName(''); setDue(null); };
+  const [due, setDue] = useState<{ d: string | null; t: string | null }>({ d: null, t: null });
+  const go = () => { if (!name.trim()) return; onAdd(name, due.d, due.t); setName(''); setDue({ d: null, t: null }); };
   return (
     <div className="psub add">
       <span className="plus-dot"><Icon name="plus" size={13} /></span>
       <input className="name-in" placeholder="Add sub-task…" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') go(); }} />
-      <DateChip value={due} placeholder="Due" done={false} onChange={setDue} />
+      <DeadlineChip date={due.d} time={due.t} week={week} name={name.trim() || 'new sub-task'} placeholder="Due" showCountdown={false} onChange={(d, t) => setDue({ d, t })} />
       <button className="btn sm primary" onClick={go} disabled={!name.trim()}>Add</button>
     </div>
   );
@@ -241,13 +255,13 @@ function Timeline({ plan, onPick }: { plan: PlanTask[]; onPick: (id: string) => 
               <div className="tl-name"><span>{t.name || 'Untitled task'}</span><b>{tp}%</b></div>
               <div className="tl-track">
                 {start && end && (
-                  <div className={'tl-bar' + (overdue(end, t.done) ? ' late' : '')} style={{ left: `${pos(start < end ? start : end)}%`, width: `${width(start < end ? start : end, start < end ? end : start)}%` }}>
+                  <div className={'tl-bar' + (overdue(end, t.done, t.due ? t.dueTime : null) ? ' late' : '')} style={{ left: `${pos(start < end ? start : end)}%`, width: `${width(start < end ? start : end, start < end ? end : start)}%` }}>
                     <i style={{ width: `${tp}%` }} />
                   </div>
                 )}
                 {t.subs.filter((s) => s.due).map((s) => (
-                  <span key={s.id} className={'tl-dot' + (s.done ? ' done' : overdue(s.due, false) ? ' late' : '')}
-                    style={{ left: `${pos(s.due!) + 50 / range.days}%` }} title={`${s.name} · ${niceDate(s.due)}`} />
+                  <span key={s.id} className={'tl-dot' + (s.done ? ' done' : overdue(s.due, false, s.dueTime) ? ' late' : '')}
+                    style={{ left: `${pos(s.due!) + 50 / range.days}%` }} title={`${s.name} · ${deadlineText(s.due, s.dueTime)}`} />
                 ))}
               </div>
             </button>

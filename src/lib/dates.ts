@@ -41,6 +41,30 @@ export function niceTime(hhmm: string | null) {
 export const timeOfISO = (iso: string) => { const d = new Date(iso); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 export const dateOfISO = (iso: string) => (iso.length <= 10 ? iso : toISODate(new Date(iso)));
 
+/** "This week (24 – 30 Nov)", "Next week (…)", or "Week of 8 Dec". */
+export function weekName(monday: string) {
+  const thisWeek = mondayOf(today());
+  const a = parseDate(monday), b = parseDate(addDays(monday, 6));
+  const range = `${a.getDate()}${a.getMonth() === b.getMonth() ? '' : ' ' + MON[a.getMonth()]} – ${b.getDate()} ${MON[b.getMonth()]}`;
+  if (monday === thisWeek) return `This week (${range})`;
+  if (monday === addDays(thisWeek, 7)) return `Next week (${range})`;
+  return `Week of ${a.getDate()} ${MON[a.getMonth()]}`;
+}
+
+/* months as "YYYY-MM" */
+export const monthOf = (d: string) => d.slice(0, 7);
+export const addMonths = (ym: string, n: number) => { const [y, m] = ym.split('-').map(Number); const d = new Date(y, m - 1 + n, 1); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
+export const monthStart = (ym: string) => `${ym}-01`;
+export const monthEnd = (ym: string) => { const [y, m] = ym.split('-').map(Number); return toISODate(new Date(y, m, 0)); };
+/** "December", or "January 2027" outside this year; "This month" for the current one when asked. */
+export function monthName(ym: string, relative = false) {
+  const [y, m] = ym.split('-').map(Number);
+  if (relative && ym === monthOf(today())) return 'This month';
+  if (relative && ym === addMonths(monthOf(today()), 1)) return 'Next month';
+  const name = new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long' });
+  return y === new Date().getFullYear() ? name : `${name} ${y}`;
+}
+
 export function longToday() {
   const d = new Date();
   return d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });

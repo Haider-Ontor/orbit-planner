@@ -7,6 +7,13 @@ export type Quadrant = 'first' | 'second' | 'third' | 'eliminate';
 
 /** In order from most to least urgent. `hint` is the plain-language meaning. */
 export const QUADRANT_ORDER: Quadrant[] = ['first', 'second', 'third', 'eliminate'];
+/** Longer explanation of each priority group, shown on hover / long-press. */
+export const QUADRANT_TIPS: Record<Quadrant, string> = {
+  first: 'Important and due soon (or overdue). Do these first. A task due within 2 days moves here on its own.',
+  second: 'Important but not rushed. Plan a time for these so they never become urgent.',
+  third: 'Less important, but still worth doing. Fit them in when you have time.',
+  eliminate: 'Low value. Drop them, or do them only when everything else is done.',
+};
 export const QUADRANTS: Record<Quadrant, { label: string; hint: string; action: string; color: string; ink: string }> = {
   first:     { label: 'Urgent',        hint: 'Needs doing now',       action: 'Do it now',              color: 'var(--q1)', ink: '#ffffff' },
   second:    { label: 'Important',     hint: 'Matters, not rushed',   action: 'Plan a time for it',     color: 'var(--q2)', ink: '#ffffff' },

@@ -49,6 +49,7 @@ export interface PlanSub {
   id: string;
   name: string;
   due: string | null;   // YYYY-MM-DD
+  dueTime?: string | null; // HH:MM, optional: "before the exam at 9:00"
   done: boolean;
   doneAt?: number | null; // when it was ticked (for the history log)
 }
@@ -57,6 +58,7 @@ export interface PlanTask {
   name: string;
   start: string | null; // YYYY-MM-DD
   due: string | null;   // YYYY-MM-DD
+  dueTime?: string | null; // HH:MM, optional
   done: boolean;
   doneAt?: number | null;
   subs: PlanSub[];
@@ -120,6 +122,11 @@ export interface Goal extends Base {
    *  later extends the span; it stays open in every week in between. */
   weekStart: string;          // Monday of the due week
   firstWeek: string;          // Monday of the week it starts
+  deadline?: string | null;   // optional exact day it must be done by (inside the due week)
+  deadlineTime?: string | null; // optional time on that day, HH:MM
+  dueMode?: 'week' | 'month' | 'date';   // how "finish by" was chosen (month: deadline = last day)
+  startMode?: 'week' | 'month' | 'date'; // how "start" was chosen
+  startDate?: string | null;  // first day, when the start was a month or a date
   priority?: 'high' | 'normal';
   pushes?: number;            // times the due week was pushed later (not the planned span)
   framework?: 'smart' | 'mto' | 'both' | 'none';

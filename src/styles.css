@@ -217,7 +217,7 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: var(--panel); }
 .seg button { border: 0; background: none; padding: 6px 12px; cursor: pointer; font-weight: 500; font-size: 13px; color: var(--ink-2); transition: background .12s; }
 .seg button:hover { background: var(--panel-2); }
-.seg button.on { background: var(--navy-soft); color: var(--navy); font-weight: 600; }
+.seg button.on { background: var(--navy); color: var(--on-accent); font-weight: 600; }
 .seg button + button { border-left: 1px solid var(--line); }
 
 /* ---------- repeating tasks ---------- */
@@ -304,7 +304,7 @@ label.field { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px
 .pills { display: flex; gap: 6px; flex-wrap: wrap; }
 .pills > button, .pill-date { border: 1px solid var(--line); background: var(--panel); color: var(--ink-2); border-radius: 7px; padding: 8px 14px; font-weight: 500; font-size: 13.5px; cursor: pointer; min-height: 40px; position: relative; display: inline-flex; align-items: center; transition: background .12s, border-color .12s; }
 .pills > button:hover, .pill-date:hover { border-color: var(--beige-strong); }
-.pills > button.on, .pill-date.on { border-color: var(--navy); background: var(--navy-soft); color: var(--navy); font-weight: 600; }
+.pills > button.on, .pill-date.on { border-color: var(--navy); background: var(--navy); color: var(--on-accent); font-weight: 600; }
 .pill-date input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
 .day-chips { display: flex; gap: 4px; flex-wrap: wrap; }
 .day-chip { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); color: var(--ink-2); font-weight: 600; cursor: pointer; padding: 0; transition: background .12s; }
@@ -555,3 +555,58 @@ input[type=checkbox] { accent-color: var(--navy); }
 .theme-prev .dot2 { width: 8px; height: 8px; border-radius: 50%; }
 .theme-card b { font-size: 13.5px; }
 .theme-card span { font-size: 12px; color: var(--ink-3); }
+
+/* ---------- deadlines (date + optional time) ---------- */
+.dl-chip { gap: 5px; font-family: inherit; line-height: 1.3; }
+.dl-chip .ico { flex: none; opacity: .75; }
+.dl-chip em { font-style: normal; font-weight: 600; opacity: .85; }
+.dl-chip em::before { content: '·'; margin-right: 5px; font-weight: 400; }
+.date-chip.soon { background: var(--orange-soft); border-color: transparent; color: var(--orange-ink); }
+.dl-q { display: flex; flex-direction: column; gap: 8px; }
+.dl-q.dim { opacity: .55; }
+.dl-label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.pills > button:disabled { cursor: default; opacity: .6; }
+.pill-date.disabled { pointer-events: none; opacity: .6; }
+.dl-preview { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 11px 13px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); font-size: 14px; color: var(--ink); }
+.dl-preview > span:not(.muted) { font-weight: 600; color: var(--navy); }
+.dl-preview.over > span:not(.muted) { color: var(--danger); }
+.dl-preview.soon > span:not(.muted) { color: var(--orange-ink); }
+.cd { font-weight: 600; }
+.cd.over { color: var(--danger); }
+.cd.soon { color: var(--orange-ink); }
+.cd.ok { color: var(--navy); }
+.goal-due { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 16px 0; }
+.wiz-actions-due { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 760px) {
+  .psub { flex-wrap: wrap; row-gap: 2px; padding-bottom: 4px; }
+  .psub .name-in { flex: 1 1 calc(100% - 72px); min-width: 0; }
+  .psub.add .name-in { flex-basis: calc(100% - 110px); }
+  .psub > .icon-btn, .psub.add > .btn { order: 2; }
+  .psub .dl-chip { order: 3; margin-left: 28px; }
+}
+
+/* ---------- explanations on hover / long-press ---------- */
+.tip { position: fixed; z-index: 400; max-width: min(280px, calc(100vw - 20px)); padding: 8px 11px; border-radius: 8px; background: var(--heading); color: var(--bg); font-size: 12.5px; line-height: 1.45; font-weight: 500; box-shadow: 0 8px 24px rgba(20, 30, 45, .22); pointer-events: none; animation: tip-in .12s ease-out; }
+@keyframes tip-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.tip.below { animation-name: tip-in-below; }
+@keyframes tip-in-below { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+[data-tip] { -webkit-touch-callout: none; }
+.info-i { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--line); color: var(--ink-3); font-size: 10.5px; font-weight: 700; font-style: italic; font-family: Georgia, serif; cursor: help; vertical-align: middle; margin-left: 4px; flex: none; user-select: none; }
+.info-i:hover, .info-i:focus-visible { color: var(--navy); border-color: var(--navy); outline: none; }
+
+/* ---------- goal wizard: when ---------- */
+.when-block { display: flex; flex-direction: column; gap: 8px; }
+.when-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.when-h b { font-size: 14px; color: var(--heading); }
+.when-seg button { min-width: 64px; min-height: 34px; }
+.when-sum { display: flex; align-items: center; gap: 6px; padding: 9px 12px; border-radius: 8px; background: var(--navy-soft); color: var(--navy); }
+.small-seg button { font-size: 12.5px; padding: 6px 10px; }
+.action-row > .seg, .action-row > .date-chip { align-self: flex-start; }
+
+.week-mover b { flex: 1; min-width: 0; }
+.week-mover.m-date > .dl-chip { flex: 1; min-width: 0; justify-content: center; white-space: normal; text-align: center; padding: 6px 10px; }
+.goal-next { display: flex; align-items: center; gap: 6px; padding: 8px 16px 0; color: var(--ink-2); }
+.goal-next b { color: var(--heading); }
+.goal-next.over { color: var(--danger); }
+.goal-next.soon { color: var(--orange-ink); }
+.goal-next .ico { flex: none; }

@@ -4,7 +4,7 @@ import { useSettings } from './lib/settings';
 import { useDriveSync } from './lib/driveSync';
 import { daysLeft } from './lib/priority';
 import { Icon } from './components/icons';
-import { Toaster, toast } from './components/ui';
+import { Toaster, TipHost, toast } from './components/ui';
 import { backgroundCheck } from './lib/update';
 import { TaskEditor } from './components/TaskEditor';
 import { QuickAddHost, openQuickAdd } from './components/QuickAdd';
@@ -23,9 +23,23 @@ import { Settings } from './views/Settings';
 import type { Task } from './lib/types';
 import type { View } from './lib/viewTypes';
 
+/** What each page is for: shown when you hover (or long-press) its button. */
+const TIPS: Partial<Record<View, string>> = {
+  today: 'Your day at a glance: what to do next, deadlines coming up, repeating tasks and progress.',
+  goals: 'Goals for a week, a month or an exact date, broken into steps, with SMART or MTO to make them clear.',
+  matrix: 'Every task sorted into Urgent, Important, Not urgent and Not important, so you know what to do first.',
+  tasks: 'All your one-off tasks in one list: search, filter and edit them.',
+  routines: 'Tasks that repeat on chosen days, like watering plants. Tick them each day to build a streak.',
+  projects: 'Bigger pieces of work split into tasks and sub-tasks, each with a deadline.',
+  calendar: 'Your tasks and Google Calendar events by day.',
+  notes: 'Quick notes and voice notes (turned into text). Sort them out later.',
+  history: 'Everything you finished, day by day, and items you deleted in the last 30 days (restore them here).',
+  capture: 'Paste an email or message and the AI turns it into tasks with deadlines.',
+};
+
 const NAV_ALL: { id: View; label: string; icon: string }[] = [
   { id: 'today', label: 'Today', icon: 'today' },
-  { id: 'goals', label: 'Weekly Goals', icon: 'goals' },
+  { id: 'goals', label: 'Goals', icon: 'goals' },
   { id: 'matrix', label: 'Priorities', icon: 'matrix' },
   { id: 'tasks', label: 'All Tasks', icon: 'tasks' },
   { id: 'routines', label: 'Repeating Tasks', icon: 'routine' },
@@ -36,10 +50,10 @@ const NAV_ALL: { id: View; label: string; icon: string }[] = [
   { id: 'capture', label: 'Paste & Extract (AI)', icon: 'capture' },
 ];
 /** Kept apart at the bottom of the sidebar; the first two open Settings at that section. */
-const NAV_BOTTOM: { id: View; label: string; icon: string; section?: string }[] = [
-  { id: 'settings', label: 'Sync & Backup', icon: 'cloud', section: 'sec-drive' },
-  { id: 'settings', label: 'Updates', icon: 'update', section: 'sec-updates' },
-  { id: 'settings', label: 'Settings', icon: 'settings' },
+const NAV_BOTTOM: { id: View; label: string; icon: string; section?: string; tip: string }[] = [
+  { id: 'settings', label: 'Sync & Backup', icon: 'cloud', section: 'sec-drive', tip: 'Connect Google to sync between your phone and PC, back up to Drive and put tasks in Google Calendar.' },
+  { id: 'settings', label: 'Updates', icon: 'update', section: 'sec-updates', tip: 'Check for a new version of Orbit and install it.' },
+  { id: 'settings', label: 'Settings', icon: 'settings', tip: 'Theme, reminders, voice, AI helper and your data.' },
 ];
 const TABS: { id: View; label: string; icon: string }[] = [
   { id: 'today', label: 'Today', icon: 'today' },
@@ -98,7 +112,7 @@ export default function App() {
       <nav className="nav" aria-label="Main">
         <div className="brand"><span className="brand-mark">◎</span>Orbit</div>
         {NAV.map((n) => (
-          <button key={n.id} className={view === n.id ? 'on' : ''} onClick={() => go(n.id)}>
+          <button key={n.id} className={view === n.id ? 'on' : ''} onClick={() => go(n.id)} data-tip={TIPS[n.id]}>
             <Icon name={n.icon} />{n.label}
             {n.id === 'today' && urgent > 0 && <span className="count">{urgent}</span>}
           </button>
@@ -106,10 +120,10 @@ export default function App() {
         <div className="spacer" />
         <div className="nav-bottom">
           {NAV_BOTTOM.map((n) => (
-            <button key={n.label} className={view === 'settings' && (focus?.section ?? '') === (n.section ?? '') ? 'on' : ''} onClick={() => go(n.id, n.section)}><Icon name={n.icon} />{n.label}</button>
+            <button key={n.label} className={view === 'settings' && (focus?.section ?? '') === (n.section ?? '') ? 'on' : ''} onClick={() => go(n.id, n.section)} data-tip={n.tip}><Icon name={n.icon} />{n.label}</button>
           ))}
         </div>
-        <button className="sync" onClick={() => go('settings', 'sec-drive')} title="Google Drive sync">
+        <button className="sync" onClick={() => go('settings', 'sec-drive')} data-tip="Shows whether your data is synced with Google Drive. Tap to open Sync & Backup.">
           <span className={'dot ' + dot} />{sync.status === 'off' ? 'On this device only' : sync.status === 'syncing' ? 'Syncing…' : sync.status === 'error' ? 'Sync problem' : 'Synced with Drive'}
         </button>
       </nav>
@@ -130,7 +144,7 @@ export default function App() {
 
       <nav className="tabbar" aria-label="Main">
         {TABS.map((t) => (
-          <button key={t.id} className={view === t.id ? 'on' : ''} onClick={() => go(t.id)}><Icon name={t.icon} size={21} />{t.label}</button>
+          <button key={t.id} className={view === t.id ? 'on' : ''} onClick={() => go(t.id)} data-tip={TIPS[t.id]}><Icon name={t.icon} size={21} />{t.label}</button>
         ))}
       </nav>
       <button className="only-sm more-btn" aria-label="More" onClick={() => setMoreOpen(true)}>
@@ -140,7 +154,7 @@ export default function App() {
         <div className="backdrop" onClick={() => setMoreOpen(false)} style={{ placeItems: 'start end' }}>
           <div className="card" style={{ padding: 8, minWidth: 220, marginTop: 40 }} onClick={(e) => e.stopPropagation()}>
             {NAV.map((n) => (
-              <button key={n.id} className="trow" style={{ width: '100%', border: 0, background: view === n.id ? 'var(--accent-soft)' : 'none', alignItems: 'center' }} onClick={() => go(n.id)}>
+              <button key={n.id} className="trow" style={{ width: '100%', border: 0, background: view === n.id ? 'var(--accent-soft)' : 'none', alignItems: 'center' }} onClick={() => go(n.id)} data-tip={TIPS[n.id]}>
                 <Icon name={n.icon} /> {n.label}
               </button>
             ))}
@@ -157,6 +171,7 @@ export default function App() {
       {editing && <TaskEditor task={editing.t} isNew={editing.isNew} projects={projects} onClose={() => setEditing(null)} />}
       <QuickAddHost onMore={(t) => setEditing({ t, isNew: true })} />
       <Toaster />
+      <TipHost />
     </div>
   );
 }

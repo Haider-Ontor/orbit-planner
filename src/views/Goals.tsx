@@ -2,14 +2,16 @@ import { useMemo, useState } from 'react';
 import { useGoals, useProjects } from '../lib/hooks';
 import { save, remove, restore } from '../lib/db';
 import { saveWithUndo } from '../lib/undo';
-import { goalProgress, goalPlan, planFromAI, weeksCarried, goalWeeks, goalCoversWeek, earliestDueWeek, movedGoal, mtoLevel, weekEnd, stepCounts } from '../lib/models';
+import { goalProgress, goalPlan, planFromAI, weeksCarried, goalWeeks, goalCoversWeek, movedGoal, mtoLevel, weekEnd, stepCounts, deadlinesOf, withDeadline, goalLate, goalCanMoveEarlier, goalDueMode, goalDueText, goalStartText, goalInMonth } from '../lib/models';
+import { deadlineMs, deadlineText, countdown } from '../lib/deadline';
+import { DeadlineChip } from '../components/DeadlinePicker';
 import { planGoal } from '../lib/ai';
 import { aiReady } from '../lib/aiProvider';
 import { useSettings } from '../lib/settings';
-import { today, addDays, mondayOf, parseDate, daysBetween, toISODate } from '../lib/dates';
+import { today, addDays, mondayOf, parseDate, daysBetween, toISODate, monthOf, addMonths, monthName } from '../lib/dates';
 import { PlanEditor } from '../components/Plan';
 import { GoalWizard, weekName } from '../components/GoalWizard';
-import { Check, Progress, ViewHead, errMsg, toast } from '../components/ui';
+import { Check, Progress, ViewHead, errMsg, toast, Info } from '../components/ui';
 import { Icon } from '../components/icons';
 import type { Goal, Project } from '../lib/types';
 
@@ -34,7 +36,7 @@ export function Goals() {
   const inWeek = live.filter((g) => g.status === 'active'
     ? goalCoversWeek(g, week)
     : (goalCoversWeek(g, week) && week <= doneWeek(g)) || doneWeek(g) === week)
-    .sort((a, b) => rank(a) - rank(b) || a.createdAt - b.createdAt);
+    .sort((a, b) => rank(a) - rank(b) || (deadlineMs(a.deadline, a.deadlineTime) ?? Infinity) - (deadlineMs(b.deadline, b.deadlineTime) ?? Infinity) || a.createdAt - b.createdAt);
   const overdue = isCurrent ? live.filter((g) => g.status === 'active' && g.weekStart < thisWeek) : [];
   const upcoming = isCurrent ? live.filter((g) => g.status === 'active' && g.firstWeek > thisWeek).sort((a, b) => a.firstWeek.localeCompare(b.firstWeek)).slice(0, 6) : [];
   const recent = isCurrent ? live.filter((g) => g.status === 'done' && g.doneAt && Date.now() - g.doneAt < 28 * 86400_000).sort((a, b) => (b.doneAt ?? 0) - (a.doneAt ?? 0)).slice(0, 6) : [];
@@ -49,7 +51,7 @@ export function Goals() {
 
   return (
     <div className="view" style={{ maxWidth: 900 }}>
-      <ViewHead title="Weekly goals" sub={`${weekName(week)}${isCurrent ? ` · ${daysLeft} day${daysLeft === 1 ? '' : 's'} left` : ''}`}>
+      <ViewHead title="Goals" sub={`${weekName(week)}${isCurrent ? ` · ${daysLeft} day${daysLeft === 1 ? '' : 's'} left` : ''}`}>
         <div className="seg">
           <button onClick={() => setWeek(addDays(week, -7))} aria-label="Previous week">‹</button>
           <button className={isCurrent ? 'on' : ''} onClick={() => setWeek(thisWeek)}>This week</button>
@@ -84,16 +86,21 @@ export function Goals() {
 
       {overdue.length > 0 && (
         <div className="card attention">
-          <div className="card-h">Needs a new week · {overdue.length}</div>
+          <div className="card-h">Past due · pick a new time · {overdue.length} <Info tip="These goals were not finished in time. Keep going with them this week (or month), or move them on. Nothing is lost: steps and progress stay." /></div>
           <div className="card-b">
             {overdue.map((g) => (
               <div key={g.id} className="trow" style={{ alignItems: 'center', cursor: 'default' }}>
                 <div className="t-main">
                   <div className="t-title">{g.title}</div>
-                  <div className="small muted">Was due {weekName(g.weekStart).toLowerCase()} · {goalProgress(g, pmap)}% done</div>
+                  <div className="small muted">Was due {goalDueText(g)} · {goalProgress(g, pmap)}% done</div>
                 </div>
-                <button className="btn sm primary" onClick={() => saveWithUndo('goals', g, movedGoal(g, thisWeek), `Continuing this week: ${g.title}`)}>This week</button>
-                <button className="btn sm" onClick={() => saveWithUndo('goals', g, movedGoal(g, addDays(thisWeek, 7)), `Moved to next week: ${g.title}`)}>Next week</button>
+                {goalDueMode(g) === 'month' ? (<>
+                  <button className="btn sm primary" data-tip="Due by the end of this month instead." onClick={() => saveWithUndo('goals', g, goalInMonth(g, monthOf(today())), `Continuing this month: ${g.title}`)}>This month</button>
+                  <button className="btn sm" data-tip="Due by the end of next month." onClick={() => saveWithUndo('goals', g, goalInMonth(g, addMonths(monthOf(today()), 1)), `Moved to next month: ${g.title}`)}>Next month</button>
+                </>) : (<>
+                  <button className="btn sm primary" data-tip="Keep working on it this week. It stays open from its first week until now." onClick={() => saveWithUndo('goals', g, movedGoal(g, thisWeek), `Continuing this week: ${g.title}`)}>This week</button>
+                  <button className="btn sm" data-tip="Move it to next week. You can move it again later." onClick={() => saveWithUndo('goals', g, movedGoal(g, addDays(thisWeek, 7)), `Moved to next week: ${g.title}`)}>Next week</button>
+                </>)}
               </div>
             ))}
           </div>
@@ -117,7 +124,7 @@ export function Goals() {
             {upcoming.map((g) => (
               <div key={g.id} className="trow" onClick={() => setWeek(g.firstWeek)} style={{ alignItems: 'center' }}>
                 <span className="done-ico" style={{ background: 'var(--panel-2)', color: 'var(--ink-2)' }}>{g.priority === 'high' ? '★' : '○'}</span>
-                <div className="t-main"><div className="t-title">{g.title}</div><div className="small muted">Starts {weekName(g.firstWeek).toLowerCase()}</div></div>
+                <div className="t-main"><div className="t-title">{g.title}</div><div className="small muted">Starts {goalStartText(g)} · due {goalDueText(g)}</div></div>
               </div>
             ))}
           </div>
@@ -152,17 +159,26 @@ function GoalCard({ g, project, progress, onEdit }: { g: Goal; project?: Project
   useSettings(); // re-render when AI settings change
   const done = g.status === 'done';
   const steps = project ? stepCounts(project) : null;
+  const nextStep = project ? deadlinesOf([project])[0] : undefined;
+  const goalCd = g.deadline && goalDueMode(g) === 'date' ? countdown(g.deadline, g.deadlineTime) : { text: '', tone: '' as const };
+  const nextCd = nextStep ? countdown(nextStep.due, nextStep.dueTime) : { text: '', tone: '' as const };
   const thisWeek = mondayOf(today());
-  const late = !done && g.weekStart < thisWeek;
-  const canEarlier = !done && g.weekStart > earliestDueWeek(); // never before this week
+  const late = goalLate(g);
+  const canEarlier = goalCanMoveEarlier(g); // never into the past
   const fw = g.framework === 'both' ? 'SMART + MTO' : g.framework === 'smart' ? 'SMART' : g.framework === 'mto' ? 'MTO' : '';
   const level = g.mto ? mtoLevel(g.mto) : 'none';
 
+  const mode = goalDueMode(g);
   const move = (dir: 1 | -1) => {
-    const next = movedGoal(g, addDays(g.weekStart, dir * 7));
-    if (next.weekStart === g.weekStart && next.firstWeek === g.firstWeek) return;
-    saveWithUndo('goals', g, next, `${g.title}: now due ${weekName(next.weekStart).toLowerCase()}`);
+    const next = mode === 'month' ? goalInMonth(g, addMonths(monthOf(g.deadline!), dir)) : movedGoal(g, addDays(g.weekStart, dir * 7));
+    if (next.weekStart === g.weekStart && next.firstWeek === g.firstWeek && next.deadline === g.deadline) return;
+    saveWithUndo('goals', g, next, `${g.title}: now due ${goalDueText(next)}`);
   };
+  const setDeadline = (d: string | null, t: string | null) => {
+    const next = withDeadline(g, d, t);
+    saveWithUndo('goals', g, next, d ? `${g.title}: due ${goalDueText(next)}` : `${g.title}: due ${goalDueText(next)}`);
+  };
+  const step = mode === 'month' ? 'month' : 'week';
   const toggleDone = () => saveWithUndo('goals', g, { ...g, status: done ? 'active' : 'done', doneAt: done ? null : Date.now() }, done ? `Goal reopened: ${g.title}` : `Goal achieved: ${g.title} 🎉`);
   const setCurrent = (v: number) => g.mto && save('goals', { ...g, mto: { ...g.mto, current: Math.max(0, v) } });
 
@@ -170,7 +186,7 @@ function GoalCard({ g, project, progress, onEdit }: { g: Goal; project?: Project
     setBusy(true);
     try {
       const start = g.firstWeek < today() ? today() : g.firstWeek;
-      const finish = weekEnd(g.weekStart);
+      const finish = g.deadline ?? weekEnd(g.weekStart);
       const plan = withAI ? planFromAI(await planGoal(g.title, g.details, start, finish), start, finish) : [];
       const p = goalPlan(g, plan);
       await save('projects', p);
@@ -194,18 +210,24 @@ function GoalCard({ g, project, progress, onEdit }: { g: Goal; project?: Project
         <div className="t-main" onClick={() => setOpen(!open)} style={{ cursor: 'pointer' }}>
           <div className="goal-title">{g.title}</div>
           <div className="t-meta">
-            {g.priority === 'high' && <span className="chip soon">Top priority</span>}
-            {fw && <span className="chip">{fw}</span>}
-            {goalWeeks(g) > 1 && <span className="chip">{shortWeek(g.firstWeek)} → {shortWeek(g.weekStart)} · {goalWeeks(g)} wks</span>}
-            {weeksCarried(g) > 0 && !done && <span className="chip">pushed {weeksCarried(g)}×</span>}
-            {late && <span className="chip over">Past due</span>}
-            {steps && steps.total > 0 && <span className="chip">{steps.done}/{steps.total} steps</span>}
+            {g.priority === 'high' && <span className="chip soon" data-tip="You starred this goal. Top-priority goals are listed first.">Top priority</span>}
+            {fw && <span className="chip" data-tip={fw === 'SMART' ? 'SMART: Specific, Measurable, Achievable, Relevant, Time-bound. Open the details to see your answers.' : fw === 'MTO' ? 'MTO: Minimum, Target, Outrageous. Count up below; each level you reach is highlighted.' : 'Uses both SMART answers and MTO levels.'}>{fw}</span>}
+            {goalWeeks(g) > 1 && <span className="chip" data-tip={`This goal is open in every week from ${shortWeek(g.firstWeek)} to the week of ${shortWeek(g.weekStart)}.`}>{shortWeek(g.firstWeek)} → {mode === 'month' ? monthName(monthOf(g.deadline!)) : shortWeek(g.weekStart)} · {goalWeeks(g)} wks</span>}
+            {weeksCarried(g) > 0 && !done && <span className="chip" data-tip={`Moved later ${weeksCarried(g)} ${step}${weeksCarried(g) === 1 ? '' : 's'} beyond the original plan.`}>pushed {weeksCarried(g)}×</span>}
+            {!done && !late && goalCd.text && <span className={'chip ' + (goalCd.tone === 'over' ? 'over' : goalCd.tone === 'soon' ? 'soon' : '')} data-tip={`Time left until this goal is due (${goalDueText(g)}).`}>{goalCd.text}</span>}
+            {late && <span className="chip over" data-tip="The finish time has passed. Move it on with the arrows below, or tick it if it's done.">Past due</span>}
+            {steps && steps.total > 0 && <span className="chip" data-tip="Steps ticked off out of all steps. Open the goal to see and tick them.">{steps.done}/{steps.total} steps</span>}
             {done && <span className="chip ok">Achieved</span>}
           </div>
         </div>
         <b className="goal-pct">{progress}%</b>
       </div>
       <div style={{ padding: '0 16px' }}><Progress value={progress} /></div>
+      {!done && nextStep && (
+        <div className={'goal-next small' + (nextCd.tone ? ' ' + nextCd.tone : '')} data-tip="The goal's step with the nearest deadline. Open Steps & details to tick it off.">
+          <Icon name="clock" size={13} /><span>Next: <b>{nextStep.name}</b>{nextStep.parent ? ` (${nextStep.parent})` : ''} · {deadlineText(nextStep.due, nextStep.dueTime)}{nextCd.text && !nextCd.text.startsWith('Due') ? ` · ${nextCd.text}` : ''}</span>
+        </div>
+      )}
 
       {g.mto && (g.framework === 'mto' || g.framework === 'both') && (
         <div className="mto-track">
@@ -233,20 +255,26 @@ function GoalCard({ g, project, progress, onEdit }: { g: Goal; project?: Project
       )}
 
       {!done && (
-        <div className="week-mover" aria-label="Due week">
-          <span className="small muted">Due</span>
-          <button className="btn sm" onClick={() => move(-1)} disabled={!canEarlier} aria-label="One week earlier">‹</button>
-          <b>{weekName(g.weekStart)}</b>
-          <button className="btn sm" onClick={() => move(1)} aria-label="One week later">›</button>
+        <div className={'week-mover m-' + mode} aria-label="When it is due">
+          <button className="btn sm" onClick={() => move(-1)} disabled={!canEarlier} aria-label={`One ${step} earlier`}
+            data-tip={canEarlier ? `Due one ${step} earlier.` : `Can't move earlier: that ${step} is already over.`}>‹</button>
+          {mode === 'date'
+            ? <DeadlineChip date={g.deadline ?? null} time={g.deadlineTime ?? null} week={g.weekStart < thisWeek ? thisWeek : g.weekStart} name={g.title} onChange={setDeadline} prefix="Due " showCountdown={false} />
+            : <b>Due {mode === 'month' ? `by end of ${monthName(monthOf(g.deadline!))}` : weekName(g.weekStart).replace(/^This|^Next|^Week/, (x) => x.toLowerCase())}</b>}
+          <button className="btn sm" onClick={() => move(1)} aria-label={`One ${step} later`}
+            data-tip={`Due one ${step} later${mode === 'date' ? ' (same weekday and time)' : ''}. The goal stays open in between.`}>›</button>
+          {mode === 'week' && <DeadlineChip date={null} time={null} week={g.weekStart < thisWeek ? thisWeek : g.weekStart} name={g.title} placeholder="+ Exact day & time" onChange={setDeadline}
+            tip="Set an exact day and time inside this week, e.g. Thursday 9 am before an exam. You'll get a countdown and a reminder." />}
         </div>
       )}
 
       <div className="goal-actions">
         <button className="btn sm" onClick={() => setOpen(!open)}>{open ? 'Hide details' : project ? 'Steps & details' : 'Details'}</button>
         <span style={{ flex: 1 }} />
-        <button className="btn sm ghost" onClick={() => saveWithUndo('goals', g, { ...g, priority: g.priority === 'high' ? 'normal' : 'high' }, g.priority === 'high' ? 'Priority: normal' : 'Marked top priority')} aria-label="Toggle top priority" title="Top priority">{g.priority === 'high' ? '★' : '☆'}</button>
-        <button className="btn sm ghost" onClick={onEdit}>Edit</button>
-        <button className="btn sm ghost danger" onClick={del} aria-label="Delete goal"><Icon name="trash" size={14} /></button>
+        <button className="btn sm ghost" onClick={() => saveWithUndo('goals', g, { ...g, priority: g.priority === 'high' ? 'normal' : 'high' }, g.priority === 'high' ? 'Priority: normal' : 'Marked top priority')} aria-label="Toggle top priority"
+          data-tip={g.priority === 'high' ? 'Top priority. Tap to make it a normal goal.' : 'Star it as top priority: listed first and highlighted.'}>{g.priority === 'high' ? '★' : '☆'}</button>
+        <button className="btn sm ghost" onClick={onEdit} data-tip="Change the name, type, start and finish, or add more steps.">Edit</button>
+        <button className="btn sm ghost danger" onClick={del} aria-label="Delete goal" data-tip="Delete this goal and its steps. You can undo, or restore it from Done & history → Recently deleted."><Icon name="trash" size={14} /></button>
       </div>
 
       {open && (
@@ -254,11 +282,11 @@ function GoalCard({ g, project, progress, onEdit }: { g: Goal; project?: Project
           {g.details && <p className="small" style={{ margin: 0 }}><b>Why:</b> {g.details}</p>}
           {g.smart && (g.framework === 'smart' || g.framework === 'both') && (
             <div className="smart-box">
-              {([['S', 'Specific', g.smart.specific], ['M', 'Measurable', g.smart.measurable], ['A', 'Achievable', g.smart.achievable], ['R', 'Relevant', g.smart.relevant], ['T', 'Time-bound', `Due ${weekName(g.weekStart).toLowerCase()}`]] as const)
+              {([['S', 'Specific', g.smart.specific], ['M', 'Measurable', g.smart.measurable], ['A', 'Achievable', g.smart.achievable], ['R', 'Relevant', g.smart.relevant], ['T', 'Time-bound', `Due ${goalDueText(g)}`]] as const)
                 .filter(([, , v]) => v).map(([k, l, v]) => <div key={k}><span className="smart-k">{k}</span><span><b>{l}:</b> {v}</span></div>)}
             </div>
           )}
-          {project ? <PlanEditor project={project} onChange={(next) => save('projects', next)} compact /> : !done && (
+          {project ? <PlanEditor project={project} onChange={(next) => save('projects', next)} compact week={g.firstWeek > thisWeek ? g.firstWeek : thisWeek} /> : !done && (
             planning ? (
               <div className="goal-plan">
                 <div className="row wrap">

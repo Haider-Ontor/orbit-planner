@@ -4,6 +4,7 @@ import { save } from '../lib/db';
 import { removeWithUndo, saveWithUndo } from '../lib/undo';
 import { newProject, projectProgress, stepCounts, deadlinesOf, newTask } from '../lib/models';
 import { PlanEditor } from '../components/Plan';
+import { deadlineText } from '../lib/deadline';
 import { TaskRow } from '../components/TaskRow';
 import { ViewHead, Progress, Modal } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -29,8 +30,9 @@ export function Projects({ open, projectId, setProjectId }: { open: (t: Task) =>
           const pr = projectProgress(p);
           const { done, total } = stepCounts(p);
           const dl = deadlinesOf([p]);
-          const late = dl.filter((d) => d.due < today()).length;
-          const next = dl.find((d) => d.due >= today());
+          const nowMs = Date.now();
+          const late = dl.filter((d) => d.at < nowMs).length;
+          const next = dl.find((d) => d.at >= nowMs);
           return (
             <div key={p.id} className="card proj" onClick={() => setProjectId(p.id)}>
               <div className="row"><span className="chip">{p.kind === 'learning' ? 'Learning' : 'Project'}</span><span style={{ flex: 1 }} />
@@ -40,7 +42,7 @@ export function Projects({ open, projectId, setProjectId }: { open: (t: Task) =>
               <div style={{ fontWeight: 700, fontSize: 16 }}>{p.name}</div>
               <Progress value={pr} />
               <div className="row small muted"><span>{total ? `${done}/${total} steps · ${pr}%` : 'No steps yet'}</span><span style={{ flex: 1 }} />
-                {next && <span>Next: {niceDate(next.due)}</span>}
+                {next && <span>Next: {deadlineText(next.due, next.dueTime)}</span>}
               </div>
               {next && <div className="small" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>→ {next.name}</div>}
             </div>

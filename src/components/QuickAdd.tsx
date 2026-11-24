@@ -59,9 +59,9 @@ function QuickAdd({ repeatFirst, onMore }: { repeatFirst: boolean; onMore: (t: T
       <div className="qa-row">
         <span className="qa-label">Repeat</span>
         <div className="pills">
-          <button className={repeat === 'once' ? 'on' : ''} onClick={() => setRepeat('once')}>Just once</button>
-          <button className={repeat === 'daily' ? 'on' : ''} onClick={() => setRepeat('daily')}>Every day</button>
-          <button className={repeat === 'days' ? 'on' : ''} onClick={() => setRepeat('days')}>Some days</button>
+          <button className={repeat === 'once' ? 'on' : ''} onClick={() => setRepeat('once')} data-tip="A one-off task. It goes to Priorities and All Tasks.">Just once</button>
+          <button className={repeat === 'daily' ? 'on' : ''} onClick={() => setRepeat('daily')} data-tip="Repeats every day, like taking medicine. Tick it each day under Repeating Tasks.">Every day</button>
+          <button className={repeat === 'days' ? 'on' : ''} onClick={() => setRepeat('days')} data-tip="Repeats on the weekdays you pick, like watering plants on Mon, Wed and Fri.">Some days</button>
         </div>
       </div>
 
@@ -87,7 +87,7 @@ function QuickAdd({ repeatFirst, onMore }: { repeatFirst: boolean; onMore: (t: T
               {when === 'date' ? new Date(date + 'T12:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : 'Pick a date'}
               <input type="date" value={date} min={today()} onChange={(e) => { if (e.target.value) { setDate(e.target.value); setWhen('date'); } }} onClick={() => setWhen('date')} />
             </label>
-            <button className={when === 'none' ? 'on' : ''} onClick={() => setWhen('none')}>No date</button>
+            <button className={when === 'none' ? 'on' : ''} onClick={() => setWhen('none')} data-tip="No deadline. It still shows in Priorities by importance.">No date</button>
           </div>
         </div>
       )}
@@ -96,14 +96,14 @@ function QuickAdd({ repeatFirst, onMore }: { repeatFirst: boolean; onMore: (t: T
         <div className="qa-row">
           <span className="qa-label">Time</span>
           <input className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} style={{ width: 140 }} aria-label="Time (optional)" />
-          <span className="small muted">optional, for a reminder</span>
+          <span className="small muted">optional: the deadline time, with a reminder</span>
         </div>
       )}
 
       {repeat === 'once' && (
         <label className="switch big">
           <input type="checkbox" checked={important} onChange={(e) => setImportant(e.target.checked)} />
-          <span>Mark as important</span>
+          <span data-tip="Important tasks go to the Important group in Priorities, or Urgent when they're due within 2 days.">Mark as important</span>
         </label>
       )}
     </Modal>

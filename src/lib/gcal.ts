@@ -4,7 +4,9 @@ import { addDays, today, toISODate } from './dates';
 import { http } from './http';
 import { googleToken, calendarGranted } from './google';
 import { quadrantOf, type Quadrant } from './priority';
-import type { CalEvent, Task, Routine } from './types';
+import type { CalEvent, Task, Routine, Project, Goal } from './types';
+import { deadlineText } from './deadline';
+import { goalDueText } from './models';
 
 /* Google Calendar, both directions, on Windows and Android.
  *  push: every task with a date → an event (timed if it has a time, all-day otherwise);
@@ -35,7 +37,7 @@ async function api(method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, bod
 }
 
 /* ---------- ids & bodies ---------- */
-async function eventIdFor(kind: 't' | 'r', id: string): Promise<string> {
+async function eventIdFor(kind: 't' | 'r' | 's' | 'g', id: string): Promise<string> {
   // Calendar ids allow a–v and 0–9; a hex digest fits that.
   const buf = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(`${kind}:${id}`));
   return 'orbit' + [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
@@ -66,6 +68,33 @@ function taskBody(t: Task) {
     start, end, colorId: COLOR[quadrantOf(t)],
     transparency: 'transparent',
     extendedProperties: { private: { orbitId: t.id, orbitKind: 'task' } },
+  };
+}
+
+/** A deadline as an event: 30 minutes ending at the deadline time, or all-day without a time. */
+function deadlineSpan(date: string, time: string | null | undefined) {
+  if (!time) return { start: { date }, end: { date: addDays(date, 1) } };
+  const e = new Date(`${date}T${time}:00`); const s = new Date(e); s.setMinutes(s.getMinutes() - 30);
+  return { start: { dateTime: localISO(s), timeZone: tz() }, end: { dateTime: localISO(e), timeZone: tz() } };
+}
+/** A goal or project step with a deadline. */
+function stepBody(p: Project, name: string, parent: string | null, date: string, time: string | null | undefined, done: boolean, orbitId: string) {
+  const where = p.kind === 'goal' ? `Goal: ${p.name}` : `Project: ${p.name}`;
+  return {
+    summary: (done ? '✓ ' : '') + `Due: ${name || 'Untitled step'}`,
+    description: `${where}${parent ? `\nPart of: ${parent}` : ''}\nMust be done by ${deadlineText(date, time)}${time ? '' : ' (end of day)'}\n\n— from Orbit`,
+    ...deadlineSpan(date, time), colorId: p.kind === 'goal' ? '9' : '2',
+    transparency: 'transparent',
+    extendedProperties: { private: { orbitId, orbitKind: 'step' } },
+  };
+}
+function goalBody(g: Goal) {
+  return {
+    summary: (g.status === 'done' ? '✓ ' : '') + `Goal due: ${g.title}`,
+    description: `${g.details ? g.details + '\n\n' : ''}Due ${goalDueText(g)}\n\n— from Orbit`,
+    ...deadlineSpan(g.deadline!, g.dueMode === 'month' ? null : g.deadlineTime), colorId: '9',
+    transparency: 'transparent',
+    extendedProperties: { private: { orbitId: g.id, orbitKind: 'goal' } },
   };
 }
 
@@ -127,6 +156,48 @@ export async function pushAll(): Promise<number> {
       if (t.gcalEventId) await db.tasks.update(t.id, { gcalEventId: null });
     }
   }
+  // goal / project steps with deadlines. Steps have no tombstones, so keep a list
+  // of the events made for them and remove the ones whose step is gone.
+  const STEPS_KEY = 'orbit.gcal.steps';
+  let had: string[] = [];
+  try { had = JSON.parse(localStorage.getItem(STEPS_KEY) || '[]'); } catch { /* ignore */ }
+  const now: string[] = [];
+  for (const p of await db.projects.toArray()) {
+    if (p.deleted || p.archived) continue;
+    for (const t of p.plan ?? []) {
+      const items: [string, ReturnType<typeof stepBody>][] = [];
+      if (t.due) items.push([`${p.id}:${t.id}`, stepBody(p, t.name, null, t.due, t.dueTime, t.done, `${p.id}:${t.id}`)]);
+      for (const s of t.subs) if (s.due) items.push([`${p.id}:${t.id}:${s.id}`, stepBody(p, s.name, t.name, s.due, s.dueTime, s.done, `${p.id}:${t.id}:${s.id}`)]);
+      for (const [key, body] of items) {
+        const id = await eventIdFor('s', key);
+        now.push(id);
+        const h = await digest(JSON.stringify(body));
+        if (localStorage.getItem(hashKey(id)) === h) continue;
+        await upsert(id, body);
+        localStorage.setItem(hashKey(id), h); n++;
+      }
+    }
+  }
+  for (const id of had) {
+    if (now.includes(id)) continue;
+    await removeEvent(id); localStorage.removeItem(hashKey(id)); n++;
+  }
+  localStorage.setItem(STEPS_KEY, JSON.stringify(now));
+
+  // goals with an exact deadline (or "by the end of a month")
+  for (const g of await db.goals.toArray()) {
+    const id = await eventIdFor('g', g.id);
+    if (!g.deleted && g.deadline && g.status !== 'dropped') {
+      const body = goalBody(g);
+      const h = await digest(JSON.stringify(body));
+      if (localStorage.getItem(hashKey(id)) === h) continue;
+      await upsert(id, body);
+      localStorage.setItem(hashKey(id), h); n++;
+    } else if (localStorage.getItem(hashKey(id)) && localStorage.getItem(hashKey(id)) !== 'gone') {
+      await removeEvent(id); localStorage.setItem(hashKey(id), 'gone'); n++;
+    }
+  }
+
   for (const r of await db.routines.toArray()) {
     const id = await eventIdFor('r', r.id);
     const want = !r.deleted && !r.archived;

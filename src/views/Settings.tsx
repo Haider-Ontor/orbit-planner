@@ -94,7 +94,7 @@ function DriveSection() {
           </div>
           {calOk ? (
             <div className="cal-opts">
-              <label className="switch"><input type="checkbox" checked={s.calendarPush} onChange={(e) => { setSettings({ calendarPush: e.target.checked }); calendarSoon(500); }} /><span>Add my tasks to Google Calendar <span className="muted small">(tasks with a date; repeating tasks as recurring events)</span></span></label>
+              <label className="switch"><input type="checkbox" checked={s.calendarPush} onChange={(e) => { setSettings({ calendarPush: e.target.checked }); calendarSoon(500); }} /><span>Add my tasks to Google Calendar <span className="muted small">(tasks with a date, goal and project deadlines, and repeating tasks as recurring events)</span></span></label>
               <label className="switch"><input type="checkbox" checked={s.calendarPull} onChange={(e) => { setSettings({ calendarPull: e.target.checked }); calendarSoon(500); }} /><span>Show my Google Calendar events in Orbit</span></label>
             </div>
           ) : (
@@ -348,7 +348,7 @@ export function Settings({ focus }: { focus?: { section: string; at: number } | 
           <h3>Theme</h3>
           <div className="theme-grid" role="radiogroup" aria-label="Theme">
             {THEMES.map((t) => (
-              <button key={t.id} role="radio" aria-checked={s.theme === t.id} className={'theme-card' + (s.theme === t.id ? ' on' : '')} onClick={() => setSettings({ theme: t.id })}>
+              <button key={t.id} role="radio" aria-checked={s.theme === t.id} className={'theme-card' + (s.theme === t.id ? ' on' : '')} onClick={() => setSettings({ theme: t.id })} data-tip={t.note}>
                 <span className="theme-prev" style={{ background: t.bg }}>
                   <span className="side" style={{ background: t.side }} />
                   <span className="body">

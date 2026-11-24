@@ -1,8 +1,9 @@
 import { db, uid, save, alive } from './db';
-import { today, mondayOf, addDays, daysBetween } from './dates';
+import { today, mondayOf, addDays, daysBetween, weekName, monthOf, monthEnd, monthStart, monthName, addMonths } from './dates';
 import type { Task, Routine, Project, Note, Goal, PlanTask, PlanSub, MtoLevels } from './types';
 import type { ExtractedTask } from './ai';
 import { saveWithUndo, doneMsg } from './undo';
+import { deadlineMs, deadlineText } from './deadline';
 
 export function newTask(p: Partial<Task> = {}): Task {
   return {
@@ -84,20 +85,26 @@ export function stepCounts(p: Project) {
   return { done: d, total: n };
 }
 
-export interface Deadline { projectId: string; projectName: string; kind: Project['kind']; taskId: string; subId: string | null; name: string; parent: string | null; due: string }
+export interface Deadline { projectId: string; projectName: string; kind: Project['kind']; taskId: string; subId: string | null; name: string; parent: string | null; due: string; dueTime: string | null; at: number }
 
-/** Every unfinished task / sub-task that has a deadline, earliest first. */
+/** Every unfinished task / sub-task that has a deadline, earliest first
+ *  (a deadline without a time counts as the end of its day). */
 export function deadlinesOf(projects: Project[]): Deadline[] {
   const out: Deadline[] = [];
   for (const p of projects) {
     if (p.archived) continue;
     for (const t of p.plan ?? []) {
       if (t.done) continue;
-      for (const s of t.subs) if (!s.done && s.due) out.push({ projectId: p.id, projectName: p.name, kind: p.kind, taskId: t.id, subId: s.id, name: s.name, parent: t.name, due: s.due });
-      if (t.due && t.subs.every((s) => s.done || !s.due || s.due !== t.due)) out.push({ projectId: p.id, projectName: p.name, kind: p.kind, taskId: t.id, subId: null, name: t.name, parent: null, due: t.due });
+      const base = { projectId: p.id, projectName: p.name, kind: p.kind, taskId: t.id };
+      for (const s of t.subs) if (!s.done && s.due) out.push({ ...base, subId: s.id, name: s.name, parent: t.name, due: s.due, dueTime: s.dueTime ?? null, at: deadlineMs(s.due, s.dueTime)! });
+      // the task's own deadline, unless an open sub-task already shows the same moment
+      const tAt = deadlineMs(t.due, t.dueTime);
+      if (t.due && tAt !== null && !t.subs.some((s) => !s.done && s.due && deadlineMs(s.due, s.dueTime) === tAt)) {
+        out.push({ ...base, subId: null, name: t.name, parent: null, due: t.due, dueTime: t.dueTime ?? null, at: tAt });
+      }
     }
   }
-  return out.sort((a, b) => a.due.localeCompare(b.due));
+  return out.sort((a, b) => a.at - b.at);
 }
 
 /** Tick a task or sub-task done from outside the plan editor. */
@@ -168,15 +175,94 @@ export const goalCoversWeek = (g: Goal, monday: string) => g.firstWeek <= monday
 /** Earliest week the due week may be moved back to: this week, never the past. */
 export const earliestDueWeek = () => mondayOf(today());
 
-/** Move the goal's due week. Moving later keeps the start, so the goal spans
- *  all weeks in between. A goal that has not started yet moves as a whole. */
+/** Move the goal's due week.
+ *  - Started goals: only the finish moves; the goal stays open in every week
+ *    in between, and moving it later counts as a push.
+ *  - Goals that haven't started: a one-week goal moves as a whole (just
+ *    rescheduled); a longer one keeps its start and only the finish moves,
+ *    unless the finish would land before the start.
+ *  An exact deadline moves with it (same weekday and time); if that moment
+ *  would already be over, the exact deadline is dropped and the week stays. */
 export function movedGoal(g: Goal, newDue: string): Goal {
   const due = newDue < earliestDueWeek() ? earliestDueWeek() : newDue;
-  const pushes = Math.max(0, weeksCarried(g) + Math.round(daysBetween(g.weekStart, due) / 7));
+  const shift = daysBetween(g.weekStart, due);
   const notStarted = g.firstWeek > earliestDueWeek();
-  if (notStarted) return { ...g, firstWeek: due, weekStart: due, pushes: 0 }; // just rescheduled, not pushed
-  return { ...g, weekStart: due, firstWeek: g.firstWeek > due ? due : g.firstWeek, pushes };
+  let deadline = g.deadline ? addDays(g.deadline, shift) : null;
+  let deadlineTime = g.deadlineTime ?? null;
+  if (deadline && (deadlineMs(deadline, deadlineTime) ?? 0) < Date.now()) { deadline = null; deadlineTime = null; }
+  if (!deadline) deadlineTime = null;
+  const dueMode = deadline ? (g.dueMode === 'month' ? 'date' : g.dueMode) : 'week';
+  const moved = { ...g, weekStart: due, deadline, deadlineTime, dueMode };
+  if (notStarted) {
+    if (goalWeeks(g) === 1 || due < g.firstWeek) {
+      const startShift = daysBetween(g.firstWeek, due);
+      return { ...moved, firstWeek: due, pushes: g.pushes ?? 0, startDate: g.startDate ? addDays(g.startDate, startShift) : g.startDate };
+    }
+    return moved; // re-planned before it started: not a push
+  }
+  return { ...moved, firstWeek: g.firstWeek > due ? due : g.firstWeek, pushes: Math.max(0, weeksCarried(g) + Math.round(shift / 7)) };
 }
+
+/** Set (or clear) a goal's exact deadline. The due week follows the date. */
+export function withDeadline(g: Goal, date: string | null, time: string | null): Goal {
+  if (!date) return { ...g, deadline: null, deadlineTime: null, dueMode: 'week' };
+  const wk = mondayOf(date);
+  return { ...g, deadline: date, deadlineTime: time, dueMode: 'date', weekStart: wk, firstWeek: g.firstWeek > wk ? wk : g.firstWeek };
+}
+
+/** How the goal's finish is set: a week, a whole month, or an exact date. */
+export const goalDueMode = (g: Goal): 'week' | 'month' | 'date' => (g.deadline ? (g.dueMode === 'month' ? 'month' : 'date') : 'week');
+
+/** "end of December", "Fri 28 Nov · 5pm", "this week (24 – 30 Nov)". */
+export function goalDueText(g: Goal): string {
+  const m = goalDueMode(g);
+  if (m === 'month') return `end of ${monthName(monthOf(g.deadline!))}`;
+  if (m === 'date') return deadlineText(g.deadline!, g.deadlineTime);
+  return weekName(g.weekStart).replace(/^This|^Next|^Week/, (x) => x.toLowerCase());
+}
+/** "this week", "1 Dec", "December" */
+export function goalStartText(g: Goal): string {
+  if (g.startDate && g.startMode === 'month') return monthName(monthOf(g.startDate));
+  if (g.startDate && g.startMode === 'date') return deadlineText(g.startDate);
+  return weekName(g.firstWeek).replace(/^This|^Next|^Week/, (x) => x.toLowerCase());
+}
+
+/** Due by the end of month `ym` (never a month that is already over). */
+export function goalInMonth(g: Goal, ym: string): Goal {
+  const cur = monthOf(today());
+  const target = ym < cur ? cur : ym;
+  const end = monthEnd(target);
+  const wk = mondayOf(end);
+  const was = g.deadline && goalDueMode(g) === 'month' ? monthOf(g.deadline) : monthOf(addDays(g.weekStart, 6));
+  const shift = (Number(target.slice(0, 4)) - Number(was.slice(0, 4))) * 12 + Number(target.slice(5)) - Number(was.slice(5));
+  const notStarted = g.firstWeek > earliestDueWeek();
+  const base = { ...g, deadline: end, deadlineTime: null, dueMode: 'month' as const, weekStart: wk };
+  if (notStarted) {
+    const startMonth = g.startDate ? monthOf(g.startDate) : monthOf(addDays(g.firstWeek, 6));
+    if (startMonth === was || target < startMonth) {
+      // a one-month goal that hasn't started (or a finish before the start): move it as a whole
+      let startDate: string | null = monthStart(addMonths(startMonth, shift));
+      if (monthOf(startDate) < cur) startDate = monthStart(cur);
+      if (!g.startDate && g.startMode !== 'month') startDate = null;
+      const fw = mondayOf(startDate ?? monthStart(target));
+      return { ...base, startDate, startMode: startDate ? 'month' : g.startMode, firstWeek: fw < earliestDueWeek() ? earliestDueWeek() : fw > wk ? wk : fw };
+    }
+    return base; // re-planned before it started: the start stays, not a push
+  }
+  return { ...base, firstWeek: g.firstWeek > wk ? wk : g.firstWeek, pushes: Math.max(0, weeksCarried(g) + shift) };
+}
+
+/** Is the goal late? Exact deadline if it has one, otherwise its due week. */
+export const goalLate = (g: Goal) => g.status === 'active' && (g.deadline
+  ? (deadlineMs(g.deadline, g.deadlineTime) ?? Infinity) < Date.now()
+  : g.weekStart < mondayOf(today()));
+
+/** Can the due week (or month) move one step earlier? Never into the past. */
+export const goalCanMoveEarlier = (g: Goal) => {
+  if (g.status !== 'active') return false;
+  if (goalDueMode(g) === 'month') return monthOf(g.deadline!) > monthOf(today());
+  return g.weekStart > earliestDueWeek() && (!g.deadline || (deadlineMs(addDays(g.deadline, -7), g.deadlineTime) ?? 0) > Date.now());
+};
 
 /** The step list behind a goal (stored as a project of kind "goal"). */
 export function goalPlan(g: Goal, plan: PlanTask[] = []): Project {

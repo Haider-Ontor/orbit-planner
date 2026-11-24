@@ -35,12 +35,14 @@ Everything works offline straight away. To keep the phone and the PC in sync (an
 
 | Screen | What it does |
 |---|---|
-| **Today** | A dashboard: gauges for today, this week's goals and repeating tasks, a live clock and status light, a 14-day "finished" trace, then *Do next*, steps due, repeating tasks, goals and *Done today*. Tap **+** (or *Add a task*) to add anything. |
-| **Weekly goals** | **New goal** walks you through it: what you want, what kind of goal it is (finish something → SMART; habit or number → Minimum / Target / Outrageous; or both), the criteria, start and finish week, top priority or normal, and small daily actions on chosen days. Use **‹ ›** on a goal to move its due week: later as often as needed (it stays open across every week in between), earlier but never before this week. Shows goals needing a new week, coming up, and recently achieved. |
+| **Today** | A dashboard: gauges for today, this week's goals and repeating tasks, a live clock and status light, a 14-day "finished" trace, then *Do next*, **Deadlines coming up** (goal and project steps in time order with a live countdown, e.g. *Tomorrow · 9am · in 15 h*), repeating tasks, goals and *Done today*. Tap **+** (or *Add a task*) to add anything. |
+| **Goals** | **New goal** walks you through it: what you want, what kind of goal it is (finish something → SMART; habit or number → Minimum / Target / Outrageous; or both), the criteria, then **Start** and **Finish by**, each as a **Week**, a **Month** or an exact **Date** (the finish date can have a time, e.g. *Sun 29 Nov · 11:59pm*), top priority or normal, and the steps. Each step is either done **on certain days** or **by a deadline** (day + optional time). Use **‹ ›** on a goal to move it a week (or a month) later as often as needed (it stays open in between), or earlier but never into the past; an exact deadline keeps its weekday and time. Shows past-due goals, coming up, and recently achieved. |
 | **Priorities** | **Urgent** (red) → **Important** (yellow) → **Not urgent** (green) → **Not important** (sky blue), top to bottom. Each task has one **Move ▾** menu (on a computer you can also drag the ⋮⋮ handle). Empty sections fold away. Deadlines move tasks up on their own. |
 | **All tasks** | Search, filter by project/quadrant, sort by priority or deadline |
 | **Repeating tasks** | Things you do every day or on chosen days (e.g. water the plants on Mon and Thu). Add them from **+** → *Some days*. 7-day tick grid, streaks, 30-day rate. |
-| **Projects** | Its own tab. Each project is a list of tasks, each with sub-tasks that have deadlines. Tick things off, see progress, and switch to a **Timeline** view. Built for the phone. Upcoming and overdue steps also appear on **Today**. |
+| **Projects** | Its own tab. Each project is a list of tasks, each with sub-tasks that have deadlines (a day, and a time if it matters). Tick things off, see progress, **Sort by deadline**, and switch to a **Timeline** view. Built for the phone. Upcoming and overdue steps also appear on **Today**. |
+| **Deadlines** | Every deadline uses the same picker: tap a day (the rest of the week, or *Other date*), then a time (*9 am, 12 pm, 2 pm, 5 pm, 9 pm, 11:59 pm*, *Other time*, or *Any time that day* = end of day). It shows the time left and turns orange, then red, as it gets close or passes. |
+| **Explanations** | Hover over any tile, button or chip (or long-press it on the phone) to see what it does. |
 | **Done & history** | Everything you finished, day by day: to-dos, plan steps, routines and goals, with a bar chart for the week. Each item has **Reopen** in case it was ticked by mistake. **Recently deleted** keeps deleted items for 30 days with **Restore**. |
 | **Undo** | Ticking, unticking, deleting, moving or archiving shows an **Undo** button for 10 seconds. Finished items never vanish: they stay under **Done today** on Today and in Done & history. |
 | **Backups** | Saved instantly on the device, plus an automatic daily copy inside the app (last 14 days, Settings → Your data & backups → Restore). On Windows the same copy is also written to `Documents\Orbit Backups` (last 30 days). |
@@ -87,6 +89,7 @@ Orbit can only see the files it creates there (Google's `drive.file` permission)
 ### 3. Google Calendar
 Uses the same Google connection as Drive (the one-time setup above also enables the **Google Calendar API**). On Windows and Android:
 - every task with a date goes to your Google Calendar: a timed event if it has a time, an all-day event otherwise, coloured by priority (red Urgent, yellow Important, green Not urgent, blue Not important);
+- every goal and project step with a deadline, and every goal with a finish date or month, becomes a "Due: …" event ending at the deadline time (all-day without a time);
 - every repeating task becomes a recurring event on its days;
 - finished tasks keep their event with a ✓; deleted tasks remove it;
 - your own calendar events show up in Today and Calendar.
@@ -100,7 +103,7 @@ Event ids are derived from Orbit's ids, so the phone and the PC never create dup
 - **Android:** uses the phone's speech recogniser with live text (set the language, e.g. Bangla, in Settings).
 
 ### 5. Reminders
-Notifications before timed tasks and routines, plus a morning digest of your top three tasks. On Windows, Orbit keeps running in the tray when you close the window (enable "Start Orbit when Windows starts" in Settings). On Android, reminders are scheduled with the OS for the next 7 days and fire even when the app is closed.
+Notifications before timed tasks, routines and goal/project deadlines that have a time, plus a morning digest: what's due today, what's due tomorrow, and your top three tasks. On Windows, Orbit keeps running in the tray when you close the window (enable "Start Orbit when Windows starts" in Settings). On Android, reminders are scheduled with the OS for the next 7 days and fire even when the app is closed.
 
 ---
 
@@ -153,6 +156,8 @@ src/lib/gcal.ts          Google Calendar two-way sync
 src/lib/voice.ts         Android speech recogniser / desktop Whisper worker
 src/lib/notify.ts        reminders (OS notifications on Android, tray app on Windows)
 src/components/Plan.tsx  project / goal plans: tasks → sub-tasks, list + timeline
+src/components/DeadlinePicker.tsx  the one day + time picker used for every deadline
+src/lib/deadline.ts      deadline moments, countdowns ("in 3 h"), labels
 src/lib/update.ts        in-app update check and install (GitHub Releases)
 android/app/src/main/java/com/orbit/planner/ApkUpdaterPlugin.java   downloads the APK and opens the Android installer
 supabase/schema.sql      (legacy) Supabase table for the old sync option

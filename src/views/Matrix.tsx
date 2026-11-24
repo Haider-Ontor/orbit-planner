@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTasks } from '../lib/hooks';
-import { QUADRANTS, QUADRANT_ORDER, quadrantOf, quadrantValues, score, dueLabel, type Quadrant } from '../lib/priority';
+import { QUADRANTS, QUADRANT_ORDER, quadrantOf, quadrantValues, score, dueLabel, type Quadrant, QUADRANT_TIPS } from '../lib/priority';
 import { saveWithUndo } from '../lib/undo';
 import { ViewHead } from '../components/ui';
 import { Icon } from '../components/icons';
@@ -47,7 +47,7 @@ export function Matrix({ open }: { open: (t: Task) => void }) {
           return (
             <section key={q} className={`prio prio-${q}` + (over === q ? ' over' : '')}
               onDragOver={(e) => { e.preventDefault(); setOver(q); }} onDragLeave={() => setOver((o) => (o === q ? null : o))} onDrop={(e) => onDrop(q, e)}>
-              <button className="prio-h" onClick={() => setOpenSec((s) => ({ ...s, [q]: !expanded }))} aria-expanded={expanded}>
+              <button className="prio-h" onClick={() => setOpenSec((s) => ({ ...s, [q]: !expanded }))} aria-expanded={expanded} data-tip={QUADRANT_TIPS[q]}>
                 <span className="prio-dot" />
                 <span className="prio-t"><b>{meta.label}</b><span>{meta.hint} · {meta.action}</span></span>
                 <span className="prio-n">{list.length}</span>
