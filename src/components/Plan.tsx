@@ -6,6 +6,7 @@ import { Check, Progress, toast } from './ui';
 import { doneMsg } from '../lib/undo';
 import { Icon } from './icons';
 import { DeadlineChip } from './DeadlinePicker';
+import { DateField } from './DateTime';
 import { isOverdue, countdown, deadlineText, deadlineMs } from '../lib/deadline';
 
 /* A plan = tasks, each with sub-tasks that have deadlines.
@@ -15,16 +16,6 @@ import { isOverdue, countdown, deadlineText, deadlineMs } from '../lib/deadline'
 const overdue = (due: string | null, done: boolean, time?: string | null) => isOverdue(due, time, done);
 /** When a task must be finished: its own deadline, else its last sub-task deadline. */
 const taskEnd = (t: PlanTask) => t.due ? deadlineMs(t.due, t.dueTime) : Math.max(0, ...t.subs.map((s) => deadlineMs(s.due, s.dueTime) ?? 0)) || null;
-
-function DateChip({ value, onChange, placeholder }: { value: string | null; onChange: (v: string | null) => void; placeholder: string }) {
-  const ref = useRef<HTMLInputElement>(null);
-  return (
-    <label className={'date-chip' + (value ? '' : ' empty')} onClick={(e) => e.stopPropagation()}>
-      <span>{value ? niceDate(value) : placeholder}</span>
-      <input ref={ref} type="date" value={value ?? ''} aria-label={placeholder} onChange={(e) => onChange(e.target.value || null)} />
-    </label>
-  );
-}
 
 function NameInput({ value, onCommit, placeholder, className, autoFocus }: { value: string; onCommit: (v: string) => void; placeholder: string; className?: string; autoFocus?: boolean }) {
   const [v, setV] = useState(value);
@@ -158,7 +149,8 @@ export function PlanEditor({ project, onChange, compact, week }: { project: Proj
                       <DeadlineChip date={t.due} time={t.dueTime} done={t.done} week={week} name={t.name} placeholder="Set deadline"
                         onChange={(d, tm) => upTask(t.id, { due: d, dueTime: tm })} />
                       <span className="small muted">Start</span>
-                      <DateChip value={t.start} placeholder="Optional" onChange={(v) => upTask(t.id, { start: v })} />
+                      <DateField value={t.start} onChange={(v) => upTask(t.id, { start: v })} label={`Start of ${t.name || 'task'} (optional)`} size="sm"
+                        tip="When you plan to start (optional). Type the date or open the calendar." />
                     </div>
 
                     <div className="subs">

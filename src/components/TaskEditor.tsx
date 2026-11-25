@@ -6,6 +6,8 @@ import { QUADRANTS, quadrantOf } from '../lib/priority';
 import { openLink } from '../lib/platform';
 import { Modal, Check } from './ui';
 import { Icon } from './icons';
+import { DateField, TimeField } from './DateTime';
+import { today } from '../lib/dates';
 
 export function TaskEditor({ task, projects, onClose, isNew }: { task: Task; projects: Project[]; onClose: () => void; isNew?: boolean }) {
   const [t, setT] = useState<Task>(task);
@@ -56,12 +58,15 @@ export function TaskEditor({ task, projects, onClose, isNew }: { task: Task; pro
 
       {mode === 'deadline' ? (
         <div className="grid2">
-          <label className="field">Due date<input className="input" type="date" value={t.due ?? ''} onChange={(e) => up({ due: e.target.value || null })} /></label>
-          <label className="field">Time (optional)<input className="input" type="time" value={t.dueTime ?? ''} onChange={(e) => up({ dueTime: e.target.value || null })} /></label>
+          <div className="field"><span>Due date</span><DateField value={t.due} onChange={(v) => up({ due: v })} label="Due date" /></div>
+          <div className="field"><span>Time (optional)</span><TimeField value={t.dueTime} onChange={(v) => up({ dueTime: v, due: t.due ?? (v ? today() : null) })} label="Due time" clearable /></div>
         </div>
       ) : (
         <div className="grid2">
-          <label className="field">Starts<input className="input" type="datetime-local" value={t.start ?? ''} onChange={(e) => up({ start: e.target.value || null })} /></label>
+          <div className="field"><span>Start day</span><DateField value={t.start ? t.start.slice(0, 10) : null} label="Start day"
+            onChange={(v) => up({ start: v ? `${v}T${t.start?.slice(11, 16) || '09:00'}` : null })} /></div>
+          <div className="field"><span>Start time</span><TimeField value={t.start ? t.start.slice(11, 16) : null} label="Start time"
+            onChange={(v) => up({ start: `${t.start?.slice(0, 10) || today()}T${v || '09:00'}` })} /></div>
           <label className="field">Duration (min)<input className="input" type="number" min={5} step={5} value={t.durationMin ?? 60} onChange={(e) => up({ durationMin: Number(e.target.value) || null })} /></label>
         </div>
       )}

@@ -132,7 +132,7 @@ h1, h2, h3 { color: var(--heading); }
 }
 .input:focus, .select:focus, .textarea:focus { border-color: var(--slate); box-shadow: 0 0 0 3px var(--navy-soft); }
 .textarea { resize: vertical; min-height: 90px; line-height: 1.55; }
-label.field { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 500; color: var(--ink-2); }
+label.field, div.field { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 500; color: var(--ink-2); }
 .row { display: flex; gap: 10px; align-items: center; }
 .row.wrap { flex-wrap: wrap; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -610,3 +610,24 @@ input[type=checkbox] { accent-color: var(--navy); }
 .goal-next.over { color: var(--danger); }
 .goal-next.soon { color: var(--orange-ink); }
 .goal-next .ico { flex: none; }
+
+/* ---------- date & time boxes (type or pick; any date) ---------- */
+.dt-field { position: relative; display: inline-flex; align-items: center; min-width: 0; max-width: 100%; }
+.dt-field > .input { width: 100%; min-width: 150px; padding-right: 40px; font-variant-numeric: tabular-nums; }
+.dt-field.time > .input { min-width: 124px; }
+.dt-field.time.has-clear > .input { padding-right: 66px; }
+.dt-field > .input::-webkit-calendar-picker-indicator { display: none; }
+.dt-btn, .dt-clear { position: absolute; top: 50%; transform: translateY(-50%); display: grid; place-items: center; border: 0; background: none; color: var(--ink-2); cursor: pointer; border-radius: 6px; padding: 0; }
+.dt-btn { right: 4px; width: 32px; height: 32px; }
+.dt-clear { right: 36px; width: 26px; height: 26px; color: var(--ink-3); }
+.dt-btn:hover, .dt-clear:hover { background: var(--panel-2); color: var(--navy); }
+.dt-field.sm > .input { min-width: 128px; padding: 4px 32px 4px 8px; font-size: 12.5px; min-height: 30px; }
+.dt-field.sm .dt-btn { width: 26px; height: 26px; right: 2px; }
+.field > .dt-field { display: flex; width: 100%; }
+.dl-type { display: flex; flex-direction: column; gap: 6px; }
+.dl-read { display: inline-flex; align-items: center; gap: 5px; color: var(--navy); font-weight: 600; }
+.dl-unread { color: var(--ink-3); }
+.dl-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.dl-fields .field > span { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.dl-preview > .dl-past { flex-basis: 100%; font-weight: 500; color: var(--ink-2); font-size: 13px; }
+@media (max-width: 420px) { .dl-fields { grid-template-columns: minmax(0, 1fr); } }

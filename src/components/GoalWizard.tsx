@@ -6,6 +6,7 @@ import { today, addDays, mondayOf, parseDate, weekName, monthOf, monthStart, mon
 import { Modal, toast } from './ui';
 import { Icon } from './icons';
 import { DeadlineChip } from './DeadlinePicker';
+import { DateField, TimeField } from './DateTime';
 import { deadlineMs } from '../lib/deadline';
 
 /* Step-by-step goal setup for people who have never used a goal "framework":
@@ -77,17 +78,20 @@ export function GoalWizard({ initial, startWeek, onClose }: { initial?: Goal; st
   const next = () => setStep(steps[Math.min(steps.length - 1, idx + 1)]);
   const back = () => setStep(steps[Math.max(0, idx - 1)]);
   // ---- when: start + finish, each by week, month or exact date
-  const floorWeek = initial && initial.firstWeek < thisWeek ? initial.firstWeek : thisWeek;
+  // Past weeks, months and dates are allowed: a goal can be added that already started (or is already late).
+  const pastWeeks = addDays(thisWeek, -8 * 7);
+  const floorWeek = initial && initial.firstWeek < pastWeeks ? initial.firstWeek : pastWeeks;
   const startDate = startMode === 'month' ? monthStart(startMonth) : startMode === 'date' ? startDay : null;
-  const firstWeek = startMode === 'week' ? first : (() => { const w = mondayOf(startDate!); return w < floorWeek ? floorWeek : w; })();
+  const firstWeek = startMode === 'week' ? first : mondayOf(startDate!);
   const deadline = dueMode === 'month' ? monthEnd(dueMonth) : dueMode === 'date' ? dl.d : null;
   const deadlineTime = dueMode === 'date' && dl.d ? dl.t : null;
   const dueWeek = deadline ? mondayOf(deadline) : due;
   const whenError = dueMode === 'date' && !dl.d ? 'Pick the date it must be finished by.'
     : (deadline && startDate && deadline < startDate) || dueWeek < firstWeek ? 'The finish is before the start. Pick a later finish, or an earlier start.' : '';
   const preview: Goal = { ...(initial ?? newGoal({})), firstWeek, weekStart: dueWeek, startMode, startDate, dueMode, deadline, deadlineTime };
-  const dueWeekFloor = firstWeek > thisWeek ? firstWeek : thisWeek;
-  const dueMonthFloor = monthOf(startDate && startDate > today() ? startDate : firstWeek > today() ? firstWeek : today());
+  const dueWeekFloor = firstWeek;
+  const dueMonthFloor = monthOf(startDate ?? addDays(firstWeek, 6));
+  const finishPast = !whenError && (deadline ? (deadlineMs(deadline, deadlineTime) ?? 0) < Date.now() : dueWeek < thisWeek);
 
   const canNext = step === 1 ? title.trim().length > 0 : step === 4 ? !whenError : true;
 
@@ -189,49 +193,46 @@ export function GoalWizard({ initial, startWeek, onClose }: { initial?: Goal; st
           <div className="when-h"><b>Start</b><WhenSeg what="start" value={startMode} onChange={setStartMode} /></div>
           {startMode === 'week' && (
             <select className="select" value={first} aria-label="Start week" onChange={(e) => setFirst(e.target.value)}>
-              {withExtra(weekOptions(floorWeek), first).map((w) => <option key={w} value={w}>{weekName(w)}</option>)}
+              {withExtra(weekOptions(floorWeek, 26), first).map((w) => <option key={w} value={w}>{weekName(w)}</option>)}
             </select>
           )}
           {startMode === 'month' && (
             <select className="select" value={startMonth} aria-label="Start month" onChange={(e) => setStartMonth(e.target.value)}>
-              {withExtra(monthOptions(monthOf(today())), startMonth).map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
+              {withExtra(monthOptions(addMonths(monthOf(today()), -6), 19), startMonth).map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
             </select>
           )}
           {startMode === 'date' && (
-            <input className="input" type="date" value={startDay} min={initial?.startDate && initial.startDate < today() ? initial.startDate : today()} aria-label="Start date"
-              onChange={(e) => { if (e.target.value) setStartDay(e.target.value); }} />
+            <DateField value={startDay} onChange={(v) => { if (v) setStartDay(v); }} label="Start date" required />
           )}
         </div>
         <div className="when-block">
           <div className="when-h"><b>Finish by</b><WhenSeg what="finish" value={dueMode} onChange={setDueMode} /></div>
           {dueMode === 'week' && (
             <select className="select" value={due} aria-label="Finish week" onChange={(e) => setDue(e.target.value)}>
-              {withExtra(weekOptions(dueWeekFloor), due).map((w) => <option key={w} value={w}>{weekName(w)}</option>)}
+              {withExtra(weekOptions(dueWeekFloor, 26), due).map((w) => <option key={w} value={w}>{weekName(w)}</option>)}
             </select>
           )}
           {dueMode === 'month' && (
             <select className="select" value={dueMonth} aria-label="Finish month" onChange={(e) => setDueMonth(e.target.value)}>
-              {withExtra(monthOptions(dueMonthFloor), dueMonth).map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
+              {withExtra(monthOptions(dueMonthFloor, 18), dueMonth).map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
             </select>
           )}
           {dueMode === 'date' && (
-            <div className="row wrap" style={{ gap: 8 }}>
-              <DeadlineChip date={dl.d} time={dl.t} week={dueWeekFloor} name={title.trim() || 'this goal'} placeholder="Pick date (and time)"
-                onChange={(d, t) => {
-                  if (d && (deadlineMs(d, t) ?? 0) < Date.now()) { toast('That moment has already passed. Pick a later day or time.', true); return; }
-                  setDl({ d, t });
-                }} />
-              <span className="small muted">The time is optional.</span>
+            <div className="dl-fields">
+              <div className="field"><span>Day</span><DateField value={dl.d} onChange={(v) => setDl((x) => ({ ...x, d: v }))} label="Finish day" /></div>
+              <div className="field"><span>Time <span className="muted">(optional)</span></span>
+                <TimeField value={dl.t} onChange={(v) => setDl((x) => ({ d: x.d ?? (v ? today() : null), t: v }))} label="Finish time" clearable /></div>
             </div>
           )}
         </div>
         {whenError && dueMode === 'date' && !dl.d
-          ? <div className="when-sum small"><Icon name="clock" size={14} /> <span>Tap <b>Pick date (and time)</b> to choose when it must be finished.</span></div>
+          ? <div className="when-sum small"><Icon name="clock" size={14} /> <span>Type or pick the <b>day</b> it must be finished by. Add a time if it matters (e.g. 9 am before an exam).</span></div>
           : whenError
           ? <div className="err-box small" role="alert">{whenError}</div>
           : <div className="when-sum small"><Icon name="calendar" size={14} /> <span>{goalStartText(preview) === goalDueText(preview)
             ? <>Runs <b>{goalDueText(preview)}</b></>
-            : <>Runs from <b>{goalStartText(preview)}</b> to <b>{goalDueText(preview)}</b></>} · {goalWeeks(preview)} week{goalWeeks(preview) === 1 ? '' : 's'}</span></div>}
+            : <>Runs from <b>{goalStartText(preview)}</b> to <b>{goalDueText(preview)}</b></>} · {goalWeeks(preview)} week{goalWeeks(preview) === 1 ? '' : 's'}
+            {finishPast && <> · <b>already past</b>, so it will show as past due</>}</span></div>}
         <div className="kind-grid two">
           <KindCard on={priority === 'high'} onClick={() => setPriority('high')} icon="star" title="Top priority" text="Most important or most impact. Shown first; put your energy here."
             tip="Top-priority goals get a star, are listed first every week and stand out on the Today page." />

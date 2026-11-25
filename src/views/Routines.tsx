@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { DateField, TimeField } from '../components/DateTime';
 import { useRoutines } from '../lib/hooks';
 import { save } from '../lib/db';
 import { removeWithUndo } from '../lib/undo';
@@ -75,7 +76,7 @@ function RoutineEditor({ r: init, isNew, cats, onClose }: { r: Routine; isNew: b
             <option value="daily">Every day</option><option value="weekdays">Weekdays</option><option value="weekly">Specific days</option><option value="interval">Every N days</option>
           </select>
         </label>
-        <label className="field">Reminder time (optional)<input className="input" type="time" value={r.time ?? ''} onChange={(e) => up({ time: e.target.value || null })} /></label>
+        <div className="field"><span>Reminder time (optional)</span><TimeField value={r.time} onChange={(v) => up({ time: v })} label="Reminder time" clearable /></div>
       </div>
       {r.freq === 'weekly' && (
         <div className="row wrap">{[1, 2, 3, 4, 5, 6, 0].map((d) => (
@@ -88,7 +89,7 @@ function RoutineEditor({ r: init, isNew, cats, onClose }: { r: Routine; isNew: b
           <input className="input" list="cats" value={r.category} onChange={(e) => up({ category: e.target.value })} />
           <datalist id="cats">{[...new Set([...cats, 'Study', 'Health', 'Planning', 'Work', 'Learning'])].map((c) => <option key={c} value={c} />)}</datalist>
         </label>
-        <label className="field">Starts<input className="input" type="date" value={r.startDate} onChange={(e) => up({ startDate: e.target.value || today() })} /></label>
+        <div className="field"><span>Starts</span><DateField value={r.startDate} onChange={(v) => up({ startDate: v || today() })} label="Start date" required /></div>
       </div>
       <label className="row small"><input type="checkbox" checked={r.archived} onChange={(e) => up({ archived: e.target.checked })} /> Paused (hide from today)</label>
     </Modal>

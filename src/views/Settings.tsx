@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { TimeField } from '../components/DateTime';
 import { useSettings, setSettings } from '../lib/settings';
 import { useSync, signIn, signOut, initSync, syncNow } from '../lib/sync';
 import { syncCalendar, calendarSoon } from '../lib/gcal';
@@ -321,7 +322,7 @@ export function Settings({ focus }: { focus?: { section: string; at: number } | 
           <label className="row"><input type="checkbox" checked={s.remindersOn} onChange={(e) => setSettings({ remindersOn: e.target.checked })} /> Notify me before timed tasks and routines</label>
           <div className="grid2">
             <label className="field">Remind me (minutes before)<input className="input" type="number" min={0} step={5} value={s.remindMinutesBefore} onChange={(e) => setSettings({ remindMinutesBefore: Math.max(0, +e.target.value || 0) })} /></label>
-            <label className="field">Morning digest<input className="input" type="time" value={s.dailyDigestTime} onChange={(e) => setSettings({ dailyDigestTime: e.target.value || '08:00' })} /></label>
+            <div className="field"><span>Morning digest</span><TimeField value={s.dailyDigestTime} onChange={(v) => setSettings({ dailyDigestTime: v || '08:00' })} label="Morning digest time" required /></div>
           </div>
           {isDesktop() && login !== null && (
             <label className="row"><input type="checkbox" checked={login} onChange={async (e) => { await desktop()!.setLaunchAtLogin(e.target.checked); setLogin(e.target.checked); }} /> Start Orbit when Windows starts (runs in the tray)</label>

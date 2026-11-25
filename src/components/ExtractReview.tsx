@@ -6,6 +6,7 @@ import { QUADRANTS, quadrantOf } from '../lib/priority';
 import { newTask } from '../lib/models';
 import { niceDate, niceTime } from '../lib/dates';
 import { toast } from './ui';
+import { DateField, TimeField } from './DateTime';
 
 /** Shows what Claude extracted; the user unticks or edits before anything is saved. */
 export function ExtractReview({ result, projects, source, onDone }: { result: Extraction; projects: Project[]; source: 'ai' | 'voice'; onDone: (n: number) => void }) {
@@ -41,8 +42,8 @@ export function ExtractReview({ result, projects, source, onDone }: { result: Ex
             </div>
             {!t.repeat && !t.start_datetime && (
               <div className="grid2">
-                <label className="field">Due<input className="input" type="date" value={t.due_date ?? ''} onChange={(e) => up(i, { due_date: e.target.value || null })} /></label>
-                <label className="field">Time<input className="input" type="time" value={t.due_time ?? ''} onChange={(e) => up(i, { due_time: e.target.value || null })} /></label>
+                <div className="field"><span>Due</span><DateField value={t.due_date} onChange={(v) => up(i, { due_date: v })} label="Due date" /></div>
+                <div className="field"><span>Time</span><TimeField value={t.due_time} onChange={(v) => up(i, { due_time: v })} label="Due time" clearable /></div>
               </div>
             )}
             {t.requirements.length > 0 && (

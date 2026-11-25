@@ -41,7 +41,8 @@ Everything works offline straight away. To keep the phone and the PC in sync (an
 | **All tasks** | Search, filter by project/quadrant, sort by priority or deadline |
 | **Repeating tasks** | Things you do every day or on chosen days (e.g. water the plants on Mon and Thu). Add them from **+** → *Some days*. 7-day tick grid, streaks, 30-day rate. |
 | **Projects** | Its own tab. Each project is a list of tasks, each with sub-tasks that have deadlines (a day, and a time if it matters). Tick things off, see progress, **Sort by deadline**, and switch to a **Timeline** view. Built for the phone. Upcoming and overdue steps also appear on **Today**. |
-| **Deadlines** | Every deadline uses the same picker: tap a day (the rest of the week, or *Other date*), then a time (*9 am, 12 pm, 2 pm, 5 pm, 9 pm, 11:59 pm*, *Other time*, or *Any time that day* = end of day). It shows the time left and turns orange, then red, as it gets close or passes. |
+| **Deadlines** | Every deadline uses the same picker, three ways: **type it in words** (*fri 5pm*, *28/11 9:30*, *yesterday 8am*, *next mon*, *25 Nov 2026*), **type or pick** in the Day and Time boxes (the 📅 / 🕒 buttons open the calendar and clock), or tap a **quick day** (Yesterday, Today, Tomorrow…) and **quick time** (9 am … 11:59 pm, or *Any time* = end of day). Past dates are fine, for things that are already overdue. It shows the time left and turns orange, then red, as it gets close or passes. |
+| **Dates & times** | Every date and time box in Orbit can be typed into or picked from the calendar / clock, and accepts past dates. |
 | **Explanations** | Hover over any tile, button or chip (or long-press it on the phone) to see what it does. |
 | **Done & history** | Everything you finished, day by day: to-dos, plan steps, routines and goals, with a bar chart for the week. Each item has **Reopen** in case it was ticked by mistake. **Recently deleted** keeps deleted items for 30 days with **Restore**. |
 | **Undo** | Ticking, unticking, deleting, moving or archiving shows an **Undo** button for 10 seconds. Finished items never vanish: they stay under **Done today** on Today and in Done & history. |
@@ -157,6 +158,7 @@ src/lib/voice.ts         Android speech recogniser / desktop Whisper worker
 src/lib/notify.ts        reminders (OS notifications on Android, tray app on Windows)
 src/components/Plan.tsx  project / goal plans: tasks → sub-tasks, list + timeline
 src/components/DeadlinePicker.tsx  the one day + time picker used for every deadline
+src/components/DateTime.tsx        date / time boxes: type or pick, any date
 src/lib/deadline.ts      deadline moments, countdowns ("in 3 h"), labels
 src/lib/update.ts        in-app update check and install (GitHub Releases)
 android/app/src/main/java/com/orbit/planner/ApkUpdaterPlugin.java   downloads the APK and opens the Android installer

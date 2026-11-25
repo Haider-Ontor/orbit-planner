@@ -3,6 +3,7 @@ import { save } from '../lib/db';
 import { newTask, newRoutine } from '../lib/models';
 import { today, addDays } from '../lib/dates';
 import { Modal, toast } from './ui';
+import { DateField, TimeField } from './DateTime';
 import type { Task } from '../lib/types';
 
 /* The one "+" used everywhere. Plain questions, no jargon:
@@ -83,19 +84,24 @@ function QuickAdd({ repeatFirst, onMore }: { repeatFirst: boolean; onMore: (t: T
           <div className="pills">
             <button className={when === 'today' ? 'on' : ''} onClick={() => setWhen('today')}>Today</button>
             <button className={when === 'tomorrow' ? 'on' : ''} onClick={() => setWhen('tomorrow')}>Tomorrow</button>
-            <label className={'pill-date' + (when === 'date' ? ' on' : '')}>
-              {when === 'date' ? new Date(date + 'T12:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : 'Pick a date'}
-              <input type="date" value={date} min={today()} onChange={(e) => { if (e.target.value) { setDate(e.target.value); setWhen('date'); } }} onClick={() => setWhen('date')} />
-            </label>
+            <button className={when === 'date' ? 'on' : ''} onClick={() => setWhen('date')} data-tip="Any other day, past or future. Type it or pick it from the calendar.">Other date</button>
             <button className={when === 'none' ? 'on' : ''} onClick={() => setWhen('none')} data-tip="No deadline. It still shows in Priorities by importance.">No date</button>
           </div>
+        </div>
+      )}
+
+      {repeat === 'once' && when === 'date' && (
+        <div className="qa-row">
+          <span className="qa-label">Date</span>
+          <DateField value={date} onChange={(v) => { if (v) setDate(v); }} label="Date" required />
+          {date < today() && <span className="small muted">Already past: it will show as overdue.</span>}
         </div>
       )}
 
       {(repeat !== 'once' || when !== 'none') && (
         <div className="qa-row">
           <span className="qa-label">Time</span>
-          <input className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} style={{ width: 140 }} aria-label="Time (optional)" />
+          <TimeField value={time || null} onChange={(v) => setTime(v ?? '')} label="Time (optional)" clearable />
           <span className="small muted">optional: the deadline time, with a reminder</span>
         </div>
       )}
