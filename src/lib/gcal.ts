@@ -78,10 +78,10 @@ function deadlineSpan(date: string, time: string | null | undefined) {
   return { start: { dateTime: localISO(s), timeZone: tz() }, end: { dateTime: localISO(e), timeZone: tz() } };
 }
 /** A goal or project step with a deadline. */
-function stepBody(p: Project, name: string, parent: string | null, date: string, time: string | null | undefined, done: boolean, orbitId: string) {
-  const where = p.kind === 'goal' ? `Goal: ${p.name}` : `Project: ${p.name}`;
+function stepBody(p: Project, name: string, parent: string | null, date: string, time: string | null | undefined, done: boolean, orbitId: string, who?: string | null) {
+  const where = p.kind === 'goal' ? `Goal: ${p.name}` : p.kind === 'group' ? `Group work: ${p.name}` : `Project: ${p.name}`;
   return {
-    summary: (done ? '✓ ' : '') + `Due: ${name || 'Untitled step'}`,
+    summary: (done ? '✓ ' : '') + `Due: ${name || 'Untitled step'}` + (who ? ` (${who})` : ''),
     description: `${where}${parent ? `\nPart of: ${parent}` : ''}\nMust be done by ${deadlineText(date, time)}${time ? '' : ' (end of day)'}\n\n— from Orbit`,
     ...deadlineSpan(date, time), colorId: p.kind === 'goal' ? '9' : '2',
     transparency: 'transparent',
@@ -166,8 +166,9 @@ export async function pushAll(): Promise<number> {
     if (p.deleted || p.archived) continue;
     for (const t of p.plan ?? []) {
       const items: [string, ReturnType<typeof stepBody>][] = [];
-      if (t.due) items.push([`${p.id}:${t.id}`, stepBody(p, t.name, null, t.due, t.dueTime, t.done, `${p.id}:${t.id}`)]);
-      for (const s of t.subs) if (s.due) items.push([`${p.id}:${t.id}:${s.id}`, stepBody(p, s.name, t.name, s.due, s.dueTime, s.done, `${p.id}:${t.id}:${s.id}`)]);
+      const who = t.assignee ? p.members?.find((m) => m.id === t.assignee)?.name ?? null : null;
+      if (t.due) items.push([`${p.id}:${t.id}`, stepBody(p, t.name, null, t.due, t.dueTime, t.done, `${p.id}:${t.id}`, who)]);
+      for (const s of t.subs) if (s.due) items.push([`${p.id}:${t.id}:${s.id}`, stepBody(p, s.name, t.name, s.due, s.dueTime, s.done, `${p.id}:${t.id}:${s.id}`, who)]);
       for (const [key, body] of items) {
         const id = await eventIdFor('s', key);
         now.push(id);

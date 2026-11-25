@@ -44,12 +44,25 @@ export interface Routine extends Base {
   createdAt: number;
 }
 
+/** Priority of a plan step, same four levels (and colours) as the Priorities page:
+ *  first = Urgent, second = Important, third = Not urgent, eliminate = Not important. */
+export type StepPriority = 'first' | 'second' | 'third' | 'eliminate';
+
+/** A person in a group project (they don't need the app; you track their work). */
+export interface Member {
+  id: string;
+  name: string;
+  role: string;   // optional, e.g. "Writes the intro"
+  color: number;  // 0..7, avatar colour
+}
+
 /** A plan is a list of tasks; each task has optional sub-tasks with deadlines. */
 export interface PlanSub {
   id: string;
   name: string;
   due: string | null;   // YYYY-MM-DD
   dueTime?: string | null; // HH:MM, optional: "before the exam at 9:00"
+  priority?: StepPriority | null;
   done: boolean;
   doneAt?: number | null; // when it was ticked (for the history log)
 }
@@ -59,6 +72,9 @@ export interface PlanTask {
   start: string | null; // YYYY-MM-DD
   due: string | null;   // YYYY-MM-DD
   dueTime?: string | null; // HH:MM, optional
+  priority?: StepPriority | null;
+  assignee?: string | null; // Member id, in group work
+  progress?: number | null; // 0..100 set by hand, used when it has no sub-tasks
   done: boolean;
   doneAt?: number | null;
   subs: PlanSub[];
@@ -76,8 +92,9 @@ export interface LegacyGanttRow {
 
 export interface Project extends Base {
   name: string;
-  kind: 'project' | 'learning' | 'goal';
+  kind: 'project' | 'learning' | 'goal' | 'group';
   plan: PlanTask[];
+  members?: Member[];   // group work: the people work is assigned to
   color: number;
   archived: boolean;
   createdAt: number;

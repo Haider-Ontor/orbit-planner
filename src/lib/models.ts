@@ -1,6 +1,6 @@
 import { db, uid, save, alive } from './db';
 import { today, mondayOf, addDays, daysBetween, weekName, monthOf, monthEnd, monthStart, monthName, addMonths } from './dates';
-import type { Task, Routine, Project, Note, Goal, PlanTask, PlanSub, MtoLevels } from './types';
+import type { Task, Routine, Project, Note, Goal, PlanTask, PlanSub, MtoLevels, Member, StepPriority } from './types';
 import type { ExtractedTask } from './ai';
 import { saveWithUndo, doneMsg } from './undo';
 import { deadlineMs, deadlineText } from './deadline';
@@ -70,13 +70,18 @@ function units(t: PlanTask): [done: number, total: number] {
   if (!t.subs.length) return [t.done ? 1 : 0, 1];
   return [t.done ? t.subs.length : t.subs.filter((s) => s.done).length, t.subs.length];
 }
+/** Like units(), but a task without sub-tasks counts its hand-set progress (40% = 0.4 done). */
+function progressUnits(t: PlanTask): [done: number, total: number] {
+  if (!t.subs.length && !t.done) return [Math.max(0, Math.min(100, t.progress ?? 0)) / 100, 1];
+  return units(t);
+}
 export function taskProgress(t: PlanTask): number {
-  const [d, n] = units(t);
+  const [d, n] = progressUnits(t);
   return Math.round((d / n) * 100);
 }
 export function projectProgress(p: Project): number {
   let d = 0, n = 0;
-  for (const t of p.plan ?? []) { const [a, b] = units(t); d += a; n += b; }
+  for (const t of p.plan ?? []) { const [a, b] = progressUnits(t); d += a; n += b; }
   return n ? Math.round((d / n) * 100) : 0;
 }
 export function stepCounts(p: Project) {
@@ -85,7 +90,13 @@ export function stepCounts(p: Project) {
   return { done: d, total: n };
 }
 
-export interface Deadline { projectId: string; projectName: string; kind: Project['kind']; taskId: string; subId: string | null; name: string; parent: string | null; due: string; dueTime: string | null; at: number }
+export interface Deadline {
+  projectId: string; projectName: string; kind: Project['kind']; taskId: string; subId: string | null;
+  name: string; parent: string | null; due: string; dueTime: string | null; at: number;
+  priority: StepPriority | null; who: string | null; // group work: who it's assigned to
+}
+const PRIO_RANK: Record<StepPriority, number> = { first: 0, second: 1, third: 2, eliminate: 3 };
+export const prioRank = (p: StepPriority | null | undefined) => (p ? PRIO_RANK[p] : 4);
 
 /** Every unfinished task / sub-task that has a deadline, earliest first
  *  (a deadline without a time counts as the end of its day). */
@@ -95,16 +106,63 @@ export function deadlinesOf(projects: Project[]): Deadline[] {
     if (p.archived) continue;
     for (const t of p.plan ?? []) {
       if (t.done) continue;
-      const base = { projectId: p.id, projectName: p.name, kind: p.kind, taskId: t.id };
-      for (const s of t.subs) if (!s.done && s.due) out.push({ ...base, subId: s.id, name: s.name, parent: t.name, due: s.due, dueTime: s.dueTime ?? null, at: deadlineMs(s.due, s.dueTime)! });
+      const who = t.assignee ? p.members?.find((m) => m.id === t.assignee)?.name ?? null : null;
+      const base = { projectId: p.id, projectName: p.name, kind: p.kind, taskId: t.id, who };
+      for (const s of t.subs) if (!s.done && s.due) out.push({ ...base, subId: s.id, name: s.name, parent: t.name, due: s.due, dueTime: s.dueTime ?? null, at: deadlineMs(s.due, s.dueTime)!, priority: s.priority ?? t.priority ?? null });
       // the task's own deadline, unless an open sub-task already shows the same moment
       const tAt = deadlineMs(t.due, t.dueTime);
       if (t.due && tAt !== null && !t.subs.some((s) => !s.done && s.due && deadlineMs(s.due, s.dueTime) === tAt)) {
-        out.push({ ...base, subId: null, name: t.name, parent: null, due: t.due, dueTime: t.dueTime ?? null, at: tAt });
+        out.push({ ...base, subId: null, name: t.name, parent: null, due: t.due, dueTime: t.dueTime ?? null, at: tAt, priority: t.priority ?? null });
       }
     }
   }
-  return out.sort((a, b) => a.at - b.at);
+  return out.sort((a, b) => a.at - b.at || prioRank(a.priority) - prioRank(b.priority));
+}
+
+/* ---------------- group work ---------------- */
+export const newMember = (p: Partial<Member> = {}): Member => ({ id: uid(), name: '', role: '', color: 0, ...p });
+export const MEMBER_COLORS = 8;
+/** "Rahim Uddin" → "RU", "Ana" → "AN". */
+export const initials = (name: string) => {
+  const w = name.trim().split(/\s+/).filter(Boolean);
+  return ((w.length > 1 ? w[0][0] + w[w.length - 1][0] : (w[0] ?? '?').slice(0, 2)) || '?').toUpperCase();
+};
+
+export interface MemberStats {
+  member: Member | null;  // null = work nobody has been given yet
+  tasks: PlanTask[];
+  done: number;           // finished pieces of work
+  total: number;
+  progress: number;       // 0..100, average over their work
+  overdue: number;
+  next: { name: string; due: string; dueTime: string | null } | null;
+}
+/** How each person in a group is doing: their work, progress, what's late, what's next. */
+export function memberStats(p: Project): MemberStats[] {
+  const now = Date.now();
+  const end = (t: PlanTask) => (t.due ? deadlineMs(t.due, t.dueTime) : null);
+  const of = (member: Member | null): MemberStats => {
+    const tasks = (p.plan ?? []).filter((t) => (member ? t.assignee === member.id : !t.assignee || !p.members?.some((m) => m.id === t.assignee)));
+    const open = tasks.filter((t) => !t.done && t.due).sort((a, b) => (end(a) ?? 0) - (end(b) ?? 0));
+    const nextT = open.find((t) => (end(t) ?? 0) >= now) ?? null;
+    return {
+      member, tasks,
+      done: tasks.filter((t) => t.done).length,
+      total: tasks.length,
+      progress: tasks.length ? Math.round(tasks.reduce((a, t) => a + taskProgress(t), 0) / tasks.length) : 0,
+      overdue: open.filter((t) => (end(t) ?? Infinity) < now).length,
+      next: nextT ? { name: nextT.name, due: nextT.due!, dueTime: nextT.dueTime ?? null } : null,
+    };
+  };
+  const rows = (p.members ?? []).map(of);
+  const nobody = of(null);
+  return nobody.total ? [...rows, nobody] : rows;
+}
+
+/** A new group with you in it, plus the people you name. */
+export function newGroup(name: string, people: string[]): Project {
+  const members = [newMember({ name: 'You', color: 0 }), ...people.map((n, i) => newMember({ name: n, color: (i + 1) % MEMBER_COLORS }))];
+  return newProject({ name, kind: 'group', color: 3, members });
 }
 
 /** Tick a task or sub-task done from outside the plan editor. */

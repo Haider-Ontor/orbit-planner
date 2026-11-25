@@ -6,6 +6,7 @@ import { today, addDays, mondayOf, niceTime, timeOfISO, dateOfISO, niceDate, par
 import { isDueOn, streak } from '../lib/recurrence';
 import { goalProgress, goalCoversWeek, deadlinesOf, toggleStep, toggleRoutineDay, goalDueText, goalDueMode } from '../lib/models';
 import { countdown, deadlineText, deadlineMs } from '../lib/deadline';
+import { PrioDot, prioLabel } from '../components/StepBits';
 import { completions, KIND_ICON } from '../lib/history';
 import { TaskRow } from '../components/TaskRow';
 import { Check, Progress } from '../components/ui';
@@ -110,7 +111,7 @@ export function Today({ open, go }: { open: (t: Task) => void; go: (v: View) => 
                 const p = pmap.get(d.projectId)!;
                 const cd = countdown(d.due, d.dueTime, false, now.getTime());
                 return (
-                  <div key={d.taskId + (d.subId ?? '')} className="trow" onClick={() => go(d.kind === 'goal' ? 'goals' : 'projects')}>
+                  <div key={d.taskId + (d.subId ?? '')} className="trow" onClick={() => go(d.kind === 'goal' ? 'goals' : d.kind === 'group' ? 'group' : 'projects')}>
                     <Check on={false} round onClick={() => toggleStep(p, d.taskId, d.subId)} label={`Mark ${d.name} done`} />
                     <div className="t-main">
                       <div className="t-title">{d.name}</div>
@@ -118,6 +119,8 @@ export function Today({ open, go }: { open: (t: Task) => void; go: (v: View) => 
                         <span className={'chip ' + (cd.tone === 'over' ? 'over' : cd.tone === 'soon' ? 'soon' : '')} data-tip={`Must be done by ${deadlineText(d.due, d.dueTime)}${d.dueTime ? '' : ' (end of day)'}.`}>
                           <Icon name="clock" size={12} /> {deadlineText(d.due, d.dueTime)}{cd.text && !cd.text.startsWith('Due') ? ` · ${cd.text}` : ''}
                         </span>
+                        {d.priority && <span className="chip"><PrioDot value={d.priority} /> {prioLabel(d.priority)}</span>}
+                        {d.who && <span className="chip" data-tip={`Group work: ${d.who} is doing this.`}><Icon name="users" size={12} /> {d.who}</span>}
                         <span className="chip">{d.projectName}{d.parent && d.parent !== d.projectName ? ` · ${d.parent}` : ''}</span>
                       </div>
                     </div>

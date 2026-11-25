@@ -16,6 +16,7 @@ import { History } from './views/History';
 import { Tasks } from './views/Tasks';
 import { Routines } from './views/Routines';
 import { Projects } from './views/Projects';
+import { Group } from './views/Group';
 import { Notes } from './views/Notes';
 import { Calendar } from './views/Calendar';
 import { Capture } from './views/Capture';
@@ -31,6 +32,7 @@ const TIPS: Partial<Record<View, string>> = {
   tasks: 'All your one-off tasks in one list: search, filter and edit them.',
   routines: 'Tasks that repeat on chosen days, like watering plants. Tick them each day to build a streak.',
   projects: 'Bigger pieces of work split into tasks and sub-tasks, each with a deadline.',
+  group: 'Team work: add the people, give each one their part with a deadline, and track everyone\'s progress.',
   calendar: 'Your tasks and Google Calendar events by day.',
   notes: 'Quick notes and voice notes (turned into text). Sort them out later.',
   history: 'Everything you finished, day by day, and items you deleted in the last 30 days (restore them here).',
@@ -44,6 +46,7 @@ const NAV_ALL: { id: View; label: string; icon: string }[] = [
   { id: 'tasks', label: 'All Tasks', icon: 'tasks' },
   { id: 'routines', label: 'Repeating Tasks', icon: 'routine' },
   { id: 'projects', label: 'Projects', icon: 'projects' },
+  { id: 'group', label: 'Group work', icon: 'users' },
   { id: 'calendar', label: 'Calendar', icon: 'calendar' },
   { id: 'notes', label: 'Notes & Voice', icon: 'notes' },
   { id: 'history', label: 'Done & History', icon: 'history' },
@@ -136,6 +139,7 @@ export default function App() {
         {view === 'tasks' && <Tasks open={open} />}
         {view === 'routines' && <Routines />}
         {view === 'projects' && <Projects open={open} projectId={projectId} setProjectId={setProjectId} />}
+        {view === 'group' && <Group />}
         {view === 'notes' && <Notes />}
         {view === 'calendar' && <Calendar open={open} go={go} />}
         {view === 'capture' && <Capture go={go} />}

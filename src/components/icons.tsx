@@ -1,7 +1,7 @@
 import {
   Sun, Target, ListOrdered, ListChecks, Repeat, FolderKanban, CalendarDays, NotebookPen, History,
   Sparkles, Settings, Mic, Plus, Check, Trash2, X, Ellipsis, Link, ChevronLeft, Menu, Flag, Cloud,
-  Download, RefreshCw, LayoutGrid, TrendingUp, Layers, PenLine, Star, Circle, Clock, AlarmClock, ArrowDownUp, type LucideIcon,
+  Download, RefreshCw, LayoutGrid, TrendingUp, Layers, PenLine, Star, Circle, Clock, AlarmClock, ArrowDownUp, Users, type LucideIcon,
 } from 'lucide-react';
 
 /* One icon family everywhere: Lucide outline icons, understated, always next to a label. */
@@ -40,6 +40,7 @@ const ICONS: Record<string, LucideIcon> = {
   clock: Clock,
   alarm: AlarmClock,
   sort: ArrowDownUp,
+  users: Users,
 };
 
 export function Icon({ name, size = 18, stroke = 1.75 }: { name: keyof typeof ICONS | string; size?: number; stroke?: number }) {

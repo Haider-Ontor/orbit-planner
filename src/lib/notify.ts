@@ -46,7 +46,7 @@ export async function remindersBetween(from: number, to: number): Promise<Remind
     if (!d.dueTime) continue;
     const fire = d.at - s.remindMinutesBefore * 60_000;
     if (fire < from || fire >= to) continue;
-    out.push({ key: `s:${d.taskId}:${d.subId ?? ''}:${d.at}`, at: fire, title: d.name, body: `Due at ${niceTime(d.dueTime)} · ${d.parent ? `${d.parent} · ` : ''}${d.projectName}` });
+    out.push({ key: `s:${d.taskId}:${d.subId ?? ''}:${d.at}`, at: fire, title: d.name, body: `Due at ${niceTime(d.dueTime)} · ${d.who ? `${d.who} · ` : ''}${d.parent ? `${d.parent} · ` : ''}${d.projectName}` });
   }
   for (const g of goals) {
     if (!g.deadlineTime) continue;

@@ -41,6 +41,8 @@ Everything works offline straight away. To keep the phone and the PC in sync (an
 | **All tasks** | Search, filter by project/quadrant, sort by priority or deadline |
 | **Repeating tasks** | Things you do every day or on chosen days (e.g. water the plants on Mon and Thu). Add them from **+** → *Some days*. 7-day tick grid, streaks, 30-day rate. |
 | **Projects** | Its own tab. Each project is a list of tasks, each with sub-tasks that have deadlines (a day, and a time if it matters). Tick things off, see progress, **Sort by deadline**, and switch to a **Timeline** view. Built for the phone. Upcoming and overdue steps also appear on **Today**. |
+| **Group work** | For team projects. **New group** → name it and add the people (you're always in it). Add each piece of work, choose **who** does it, give it a **deadline** (day + time), an optional **start** (for the timeline) and a **priority**, and drag its **progress** bar as they report back (or add sub-tasks to track it step by step). The **People** list shows everyone's progress bar, what they've finished, what's overdue and what's next; tap a person to see only their work. **Timeline** shows every part as a bar in that person's colour. Group deadlines also appear on Today, in reminders and in Google Calendar with the person's name. |
+| **Priorities on steps** | Every task and sub-task in goals, projects and group work can have a priority (Urgent, Important, Not urgent, Not important, same colours as the Priorities page). **Sort** puts a plan in deadline or priority order. |
 | **Deadlines** | Every deadline uses the same picker, three ways: **type it in words** (*fri 5pm*, *28/11 9:30*, *yesterday 8am*, *next mon*, *25 Nov 2026*), **type or pick** in the Day and Time boxes (the 📅 / 🕒 buttons open the calendar and clock), or tap a **quick day** (Yesterday, Today, Tomorrow…) and **quick time** (9 am … 11:59 pm, or *Any time* = end of day). Past dates are fine, for things that are already overdue. It shows the time left and turns orange, then red, as it gets close or passes. |
 | **Dates & times** | Every date and time box in Orbit can be typed into or picked from the calendar / clock, and accepts past dates. |
 | **Explanations** | Hover over any tile, button or chip (or long-press it on the phone) to see what it does. |
@@ -159,6 +161,8 @@ src/lib/notify.ts        reminders (OS notifications on Android, tray app on Win
 src/components/Plan.tsx  project / goal plans: tasks → sub-tasks, list + timeline
 src/components/DeadlinePicker.tsx  the one day + time picker used for every deadline
 src/components/DateTime.tsx        date / time boxes: type or pick, any date
+src/views/Group.tsx      group work: people, their work, progress per person
+src/components/StepBits.tsx  priority picker, avatars, "assigned to" picker
 src/lib/deadline.ts      deadline moments, countdowns ("in 3 h"), labels
 src/lib/update.ts        in-app update check and install (GitHub Releases)
 android/app/src/main/java/com/orbit/planner/ApkUpdaterPlugin.java   downloads the APK and opens the Android installer

@@ -18,7 +18,7 @@ export function Projects({ open, projectId, setProjectId }: { open: (t: Task) =>
   const current = projects.find((p) => p.id === projectId);
   if (current) return <ProjectDetail p={current} open={open} back={() => setProjectId(null)} />;
 
-  const shown = projects.filter((p) => p.kind !== 'goal' && (kindFilter === 'archived' ? p.archived : !p.archived && (kindFilter === 'all' || p.kind === kindFilter)));
+  const shown = projects.filter((p) => p.kind !== 'goal' && p.kind !== 'group' && (kindFilter === 'archived' ? p.archived : !p.archived && (kindFilter === 'all' || p.kind === kindFilter)));
   return (
     <div className="view">
       <ViewHead title="Projects & learning" sub="Break each project into tasks and sub-tasks with deadlines.">
