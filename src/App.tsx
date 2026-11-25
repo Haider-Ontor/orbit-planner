@@ -21,14 +21,14 @@ import { Notes } from './views/Notes';
 import { Calendar } from './views/Calendar';
 import { Capture } from './views/Capture';
 import { Settings } from './views/Settings';
-import type { Task } from './lib/types';
+import type { Task, Project } from './lib/types';
 import type { View } from './lib/viewTypes';
 
 /** What each page is for: shown when you hover (or long-press) its button. */
 const TIPS: Partial<Record<View, string>> = {
   today: 'Your day at a glance: what to do next, deadlines coming up, repeating tasks and progress.',
   goals: 'Goals for a week, a month or an exact date, broken into steps, with SMART or MTO to make them clear.',
-  matrix: 'Every task sorted into Urgent, Important, Not urgent and Not important, so you know what to do first.',
+  matrix: 'Your to-dos and every goal, project and group step with a priority, sorted into Urgent, Important, Not urgent and Not important, soonest deadline first.',
   tasks: 'All your one-off tasks in one list: search, filter and edit them.',
   routines: 'Tasks that repeat on chosen days, like watering plants. Tick them each day to build a streak.',
   projects: 'Bigger pieces of work split into tasks and sub-tasks, each with a deadline.',
@@ -88,12 +88,19 @@ export default function App() {
     else document.documentElement.setAttribute('data-theme', settings.theme);
   }, [settings.theme]);
 
+  const [groupId, setGroupId] = useState<string | null>(null);
   const go = useCallback((v: View, section?: string) => {
-    setView(v); setMoreOpen(false); if (v !== 'projects') setProjectId(null);
+    setView(v); setMoreOpen(false); if (v !== 'projects') setProjectId(null); if (v !== 'group') setGroupId(null);
     setFocus(section ? { section, at: Date.now() } : null);
     if (!section) document.querySelector('.main')?.scrollTo(0, 0);
   }, []);
   const open = useCallback((t: Task) => setEditing({ t, isNew: !tasks.some((x) => x.id === t.id) }), [tasks]);
+  /** Open the goal, project or group a plan step belongs to. */
+  const openPlan = useCallback((p: Project) => {
+    if (p.kind === 'goal') go('goals');
+    else if (p.kind === 'group') { go('group'); setGroupId(p.id); }
+    else { go('projects'); setProjectId(p.id); }
+  }, [go]);
 
   // Keyboard: N = new task, / = capture
   useEffect(() => {
@@ -135,11 +142,11 @@ export default function App() {
         {view === 'today' && <Today open={open} go={go} />}
         {view === 'goals' && <Goals />}
         {view === 'history' && <History open={open} />}
-        {view === 'matrix' && <Matrix open={open} />}
+        {view === 'matrix' && <Matrix open={open} openPlan={openPlan} />}
         {view === 'tasks' && <Tasks open={open} />}
         {view === 'routines' && <Routines />}
         {view === 'projects' && <Projects open={open} projectId={projectId} setProjectId={setProjectId} />}
-        {view === 'group' && <Group />}
+        {view === 'group' && <Group groupId={groupId} setGroupId={setGroupId} />}
         {view === 'notes' && <Notes />}
         {view === 'calendar' && <Calendar open={open} go={go} />}
         {view === 'capture' && <Capture go={go} />}

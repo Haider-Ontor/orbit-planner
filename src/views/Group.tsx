@@ -13,9 +13,8 @@ import type { Member, Project } from '../lib/types';
 /* Group work: share out a project between people, give each piece of work a
  * deadline, a timeline and a progress bar, and see how everyone is doing. */
 
-export function Group() {
+export function Group({ groupId: id, setGroupId: setId }: { groupId: string | null; setGroupId: (id: string | null) => void }) {
   const projects = useProjects();
-  const [id, setId] = useState<string | null>(null);
   const [archived, setArchived] = useState(false);
   const [creating, setCreating] = useState(false);
   const groups = projects.filter((p) => p.kind === 'group');

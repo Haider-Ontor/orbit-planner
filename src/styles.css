@@ -696,3 +696,8 @@ input[type=checkbox] { accent-color: var(--navy); }
   .add-row.with-who > .member-pick { margin-right: auto; }
 }
 .pt-v > .dl-chip { flex-wrap: wrap; row-gap: 2px; max-width: 100%; }
+.prio-item .chip.src { max-width: 100%; min-width: 0; }
+.prio-item .chip.src .ellipsis { display: inline-block; max-width: 220px; vertical-align: bottom; }
+.prio-item .t-meta { min-width: 0; }
+.prio-item .t-meta .chip:not(.src) { flex-wrap: wrap; column-gap: 4px; text-overflow: clip; }
+.nw { white-space: nowrap; }

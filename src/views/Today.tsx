@@ -4,7 +4,7 @@ import { useTasks, useRoutines, useEvents, useProjects, useGoals } from '../lib/
 import { score, daysLeft, quadrantOf } from '../lib/priority';
 import { today, addDays, mondayOf, niceTime, timeOfISO, dateOfISO, niceDate, parseDate } from '../lib/dates';
 import { isDueOn, streak } from '../lib/recurrence';
-import { goalProgress, goalCoversWeek, deadlinesOf, toggleStep, toggleRoutineDay, goalDueText, goalDueMode } from '../lib/models';
+import { goalProgress, goalCoversWeek, deadlinesOf, toggleStep, toggleRoutineDay, goalDueText, goalDueMode, prioritizedSteps } from '../lib/models';
 import { countdown, deadlineText, deadlineMs } from '../lib/deadline';
 import { PrioDot, prioLabel } from '../components/StepBits';
 import { completions, KIND_ICON } from '../lib/history';
@@ -44,7 +44,7 @@ export function Today({ open, go }: { open: (t: Task) => void; go: (v: View) => 
   const stepsToday = allSteps.filter((d) => d.due === t0 && d.at >= now.getTime()).length;
   const weekGoals = goals.filter((g) => g.status !== 'dropped' && (g.status === 'active' ? goalCoversWeek(g, wk) || g.weekStart < wk : goalCoversWeek(g, wk)))
     .sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done') || (deadlineMs(a.deadline, a.deadlineTime) ?? Infinity) - (deadlineMs(b.deadline, b.deadlineTime) ?? Infinity));
-  const firstCount = active.filter((t) => quadrantOf(t) === 'first').length;
+  const firstCount = active.filter((t) => quadrantOf(t) === 'first').length + prioritizedSteps(projects, goals).filter((s) => s.priority === 'first').length;
   const bestStreak = routines.reduce((m, r) => Math.max(m, streak(r)), 0);
 
   const todaysTasks = tasks.filter((t) => t.due === t0 || (t.start && dateOfISO(t.start) === t0));
@@ -88,7 +88,7 @@ export function Today({ open, go }: { open: (t: Task) => void; go: (v: View) => 
         <div className="stats">
           <button className={'stat' + (nOver ? ' warn' : '')} onClick={() => go(overdue.length || !stepsLate ? 'tasks' : 'goals')} data-tip="Tasks and goal or project steps whose deadline has passed and that aren't done yet."><b>{nOver}</b><span>Overdue</span></button>
           <button className="stat" onClick={() => go(dueToday.length || !stepsToday ? 'tasks' : 'goals')} data-tip="Tasks and goal or project steps due later today (or scheduled for today)."><b>{nToday}</b><span>Due today</span></button>
-          <button className="stat" onClick={() => go('matrix')} data-tip="Tasks in your Urgent priority group: important and due soon. Tap to open Priorities."><b>{firstCount}</b><span>Urgent</span></button>
+          <button className="stat" onClick={() => go('matrix')} data-tip="Everything in your Urgent priority group: to-dos that are important and due soon, plus goal and project steps marked Urgent. Tap to open Priorities."><b>{firstCount}</b><span>Urgent</span></button>
           <button className="stat" onClick={() => go('routines')} data-tip="The most days in a row you've kept up a repeating task."><b>{bestStreak || '–'}</b><span>Best streak (days)</span></button>
         </div>
       </section>

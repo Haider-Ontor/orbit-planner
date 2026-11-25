@@ -165,6 +165,60 @@ export function newGroup(name: string, people: string[]): Project {
   return newProject({ name, kind: 'group', color: 3, members });
 }
 
+/* ---------------- prioritised steps (shown on the Priorities page) ---------------- */
+export interface PrioStep {
+  key: string;              // "projectId:taskId(:subId)"
+  project: Project;
+  taskId: string;
+  subId: string | null;
+  name: string;
+  parent: string | null;    // the task a sub-task belongs to
+  priority: StepPriority;
+  due: string | null;
+  dueTime: string | null;
+  at: number | null;        // deadline moment, for sorting
+  who: string | null;       // group work: who is doing it
+  subsOpen: number;         // a task: its unfinished sub-tasks
+  subsTotal: number;
+}
+/** Every unfinished task or sub-task (in goals, projects and group work) that
+ *  has a priority. A task with a priority stands for its sub-tasks, unless a
+ *  sub-task has a priority of its own, which then shows separately. A task
+ *  without its own deadline sorts by its next sub-task deadline. */
+export function prioritizedSteps(projects: Project[], goals: Goal[] = []): PrioStep[] {
+  // steps of goals you dropped don't belong on the list
+  const skip = new Set(goals.filter((g) => g.status === 'dropped' && g.projectId).map((g) => g.projectId!));
+  const out: PrioStep[] = [];
+  for (const p of projects) {
+    if (p.archived || p.deleted || skip.has(p.id)) continue;
+    for (const t of p.plan ?? []) {
+      if (t.done) continue;
+      const who = t.assignee ? p.members?.find((m) => m.id === t.assignee)?.name ?? null : null;
+      const openSubs = t.subs.filter((s) => !s.done);
+      if (t.priority) {
+        const nextSub = openSubs.filter((s) => s.due).sort((a, b) => (deadlineMs(a.due, a.dueTime) ?? 0) - (deadlineMs(b.due, b.dueTime) ?? 0))[0];
+        const due = t.due ?? nextSub?.due ?? null, dueTime = t.due ? t.dueTime ?? null : nextSub?.dueTime ?? null;
+        out.push({ key: `${p.id}:${t.id}`, project: p, taskId: t.id, subId: null, name: t.name, parent: null, priority: t.priority, due, dueTime, at: deadlineMs(due, dueTime), who, subsOpen: openSubs.length, subsTotal: t.subs.length });
+      }
+      for (const s of openSubs) {
+        if (!s.priority) continue;
+        out.push({ key: `${p.id}:${t.id}:${s.id}`, project: p, taskId: t.id, subId: s.id, name: s.name, parent: t.name, priority: s.priority, due: s.due, dueTime: s.dueTime ?? null, at: deadlineMs(s.due, s.dueTime), who, subsOpen: 0, subsTotal: 0 });
+      }
+    }
+  }
+  return out;
+}
+
+/** Change the priority of a plan task or sub-task, with Undo. */
+export function setStepPriority(p: Project, taskId: string, subId: string | null, priority: StepPriority | null, label: string) {
+  const plan = p.plan.map((t) => {
+    if (t.id !== taskId) return t;
+    if (!subId) return { ...t, priority };
+    return { ...t, subs: t.subs.map((s) => (s.id === subId ? { ...s, priority } : s)) };
+  });
+  return saveWithUndo('projects', p, { ...p, plan }, label);
+}
+
 /** Tick a task or sub-task done from outside the plan editor. */
 export async function toggleStep(p: Project, taskId: string, subId: string | null) {
   const now = Date.now();
